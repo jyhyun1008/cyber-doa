@@ -29,7 +29,7 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           title: { type: "string" },
           deadline: {
             type: ["string", "null"],
-            description: "마감일이 있으면 ISO 8601 datetime, 없으면 null",
+            description: "마감일이 있으면 ISO 8601 datetime(+09:00 KST 오프셋 포함, UTC/Z 금지), 없으면 null",
           },
         },
         required: ["title", "deadline"],
@@ -70,7 +70,10 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
         type: "object",
         properties: {
           title: { type: "string" },
-          scheduledAt: { type: "string", description: "ISO 8601 절대 datetime" },
+          scheduledAt: {
+            type: "string",
+            description: "ISO 8601 절대 datetime, 반드시 +09:00(KST) 오프셋 포함. UTC/Z 금지.",
+          },
         },
         required: ["title", "scheduledAt"],
         additionalProperties: false,
@@ -110,6 +113,10 @@ export const MEMORY_TOOL_NAMES = [
   "add_schedule",
 ] as const;
 
+function sameTitle(a: string, b: string) {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
 export async function executeMemoryTool(name: string, args: Record<string, unknown>) {
   switch (name) {
     case "update_user_profile": {
@@ -124,6 +131,12 @@ export async function executeMemoryTool(name: string, args: Record<string, unkno
     case "add_todo": {
       const title = String(args.title ?? "").trim();
       if (!title) return { ok: false, error: "title is required" };
+
+      const existing = await prisma.todo.findMany({ where: { isDone: false } });
+      if (existing.some((t) => sameTitle(t.title, title))) {
+        return { ok: true, skipped: "already exists" };
+      }
+
       const deadline = args.deadline ? new Date(String(args.deadline)) : null;
       await prisma.todo.create({
         data: { title, deadline: deadline && !isNaN(deadline.getTime()) ? deadline : null },
@@ -139,6 +152,12 @@ export async function executeMemoryTool(name: string, args: Record<string, unkno
       if (!title || !daysOfWeek.length || !/^\d{2}:\d{2}$/.test(time)) {
         return { ok: false, error: "invalid routine arguments" };
       }
+
+      const existing = await prisma.routine.findMany();
+      if (existing.some((r) => sameTitle(r.title, title))) {
+        return { ok: true, skipped: "already exists" };
+      }
+
       await prisma.routine.create({
         data: { title, daysOfWeek: JSON.stringify(daysOfWeek), time },
       });
@@ -150,6 +169,15 @@ export async function executeMemoryTool(name: string, args: Record<string, unkno
       if (!title || isNaN(scheduledAt.getTime())) {
         return { ok: false, error: "invalid schedule arguments" };
       }
+
+      const existing = await prisma.schedule.findMany({ where: { isSent: false } });
+      const isDuplicate = existing.some(
+        (s) => sameTitle(s.title, title) && Math.abs(s.scheduledAt.getTime() - scheduledAt.getTime()) < 5 * 60_000
+      );
+      if (isDuplicate) {
+        return { ok: true, skipped: "already exists" };
+      }
+
       await prisma.schedule.create({ data: { title, scheduledAt } });
       return { ok: true };
     }

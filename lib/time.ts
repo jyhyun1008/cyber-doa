@@ -54,6 +54,12 @@ export function formatKoreanDateTime(date: Date = new Date()): string {
   return `${p.year}-${p.month}-${p.day} (${WEEKDAY_LABELS_KO[p.weekdayIndex]}) ${p.hour}:${p.minute}`;
 }
 
+/** ISO 8601 with an explicit +09:00 offset, e.g. "2026-07-22T13:28:00+09:00" — unambiguous for LLM date math. */
+export function isoKstOffset(date: Date = new Date()): string {
+  const p = partsFor(date);
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:00+09:00`;
+}
+
 export function isWithinMinutesAfter(target: Date, now: Date, minutes: number): boolean {
   const diffMs = now.getTime() - target.getTime();
   return diffMs >= 0 && diffMs <= minutes * 60_000;

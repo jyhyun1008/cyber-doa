@@ -2,7 +2,7 @@ import type OpenAI from "openai";
 import { openai, OPENAI_MODEL } from "./openai";
 import { chatTools, executeMemoryTool, MEMORY_TOOL_NAMES } from "./tools";
 import { prisma } from "./db";
-import { formatKoreanDateTime } from "./time";
+import { formatKoreanDateTime, isoKstOffset } from "./time";
 
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 
@@ -18,7 +18,7 @@ export async function buildSystemPrompt(): Promise<string> {
 
   const todoLines = todos.length
     ? todos
-        .map((t) => `- ${t.title}${t.deadline ? ` (마감: ${t.deadline.toISOString()})` : ""}`)
+        .map((t) => `- ${t.title}${t.deadline ? ` (마감: ${isoKstOffset(t.deadline)})` : ""}`)
         .join("\n")
     : "(없음)";
 
@@ -29,7 +29,7 @@ export async function buildSystemPrompt(): Promise<string> {
     : "(없음)";
 
   const scheduleLines = schedules.length
-    ? schedules.map((s) => `- ${s.title} (${s.scheduledAt.toISOString()})`).join("\n")
+    ? schedules.map((s) => `- ${s.title} (${isoKstOffset(s.scheduledAt)})`).join("\n")
     : "(없음)";
 
   return `너는 "DOA"라는 이름을 가진 가상 메이드 캐릭터야. 유저의 말동무이자 개인 비서 역할을 해.
@@ -41,7 +41,7 @@ export async function buildSystemPrompt(): Promise<string> {
 - 대화는 보통 잡담, 신세한탄 들어주기, 심심풀이 상대야. 진지한 상담처럼 굴지 말고 편하게 받아줘.
 
 # 현재 시각
-${formatKoreanDateTime()}
+${formatKoreanDateTime()} (ISO: ${isoKstOffset()})
 
 # 유저에 대해 알고 있는 정보 (긴 줄글 메모)
 ${user?.profile ? user.profile : "(아직 알고 있는 정보 없음)"}
@@ -56,10 +56,14 @@ ${routineLines}
 ${scheduleLines}
 
 # 도구 사용 규칙
-- 대화 중 유저에 대한 새로운 정보, 할 일, 루틴, 일정처럼 기억해둘 만한 중요한 내용이 나오면 해당 도구를 호출해서 저장해.
+- 이번 유저 메시지에 새로 등장한 정보(새로운 할 일/루틴/일정, 새로 알게 된 유저 정보)가 있을 때만 해당 메모리 도구를 호출해.
+- 위 "할 일 목록/반복 루틴/예정된 일정"에 이미 올라와 있는 항목은 절대 다시 add_todo/add_routine/add_schedule로 추가하지 마. 이미 저장된 내용은 그냥 참고만 하고, 유저가 이번에 새로 말하지 않았다면 손대지 마.
+- 이번 턴에 새로 기억할 내용이 하나도 없으면 메모리 도구는 아예 호출하지 말고 send_reply만 호출해.
 - update_user_profile을 호출할 때는 기존 정보에 새 정보를 자연스럽게 반영한 전체 텍스트를 다시 작성해서 전달해(기존 내용을 요약 없이 다 날리지 말고 이어서 갱신).
-- 상대적 시간 표현(예: "4시간 후")은 위에 적힌 현재 시각을 기준으로 정확한 절대 시각으로 변환해서 add_schedule에 전달해.
-- 이번 턴에 어떤 메모리 도구를 호출했든 안 했든, 마지막에는 반드시 send_reply를 정확히 한 번 호출해서 실제 답장을 전달해야 해. send_reply 없이 턴을 끝내면 안 돼.
+- 상대적 시간 표현(예: "4시간 후", "30분 후")은 위에 적힌 "현재 시각"의 ISO 값을 기준으로 정확히 더하거나 빼서 add_schedule에 전달해.
+- add_schedule에 전달하는 scheduledAt은 반드시 위 "현재 시각" ISO와 같은 형식으로 "+09:00" 오프셋을 붙여서 전달해(예: "2026-07-22T13:58:00+09:00"). "Z"나 UTC로 변환하지 마 — 위에 보이는 시:분 숫자를 그대로 쓰고 끝에 +09:00만 붙이면 돼.
+- 답장은 항상 이번 유저 메시지(가장 마지막 메시지)에 대한 반응이어야 해. 이전 턴에서 이미 한 말을 이유 없이 반복하지 마.
+- 답장을 할 때는 send_reply 도구를 사용해. 다른 메모리 도구를 호출했다면 그 다음에 이어서 send_reply도 호출해.
 - thinking_seconds는 실제로 고민해야 할 만큼만 크게 잡아. 짧고 간단한 대답(예: "네!", "넵")은 1~3초, 복잡하거나 신중히 생각해야 하는 답은 최대 60초까지도 가능.`;
 }
 
@@ -78,7 +82,7 @@ export async function generateAssistantReply(
       model: OPENAI_MODEL,
       messages,
       tools: chatTools,
-      tool_choice: "required",
+      tool_choice: "auto",
       parallel_tool_calls: true,
     });
 
@@ -87,8 +91,8 @@ export async function generateAssistantReply(
     messages.push(choice);
 
     if (!choice.tool_calls?.length) {
-      // tool_choice: "required" should prevent this, but models occasionally still reply in
-      // plain text — treat that text as the reply instead of discarding it.
+      // the model sometimes just answers directly without calling send_reply —
+      // treat that text as the reply instead of discarding it.
       const content = choice.content?.trim();
       if (content) {
         return { reply: content, thinking_seconds: 5 };
