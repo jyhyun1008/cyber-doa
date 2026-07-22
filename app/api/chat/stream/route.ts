@@ -50,6 +50,9 @@ export async function GET(request: NextRequest) {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
+      // tells nginx (and similar reverse proxies) not to buffer this response —
+      // without it, SSE events sit in the proxy's buffer until the connection closes
+      "X-Accel-Buffering": "no",
     },
   });
 }
