@@ -43,7 +43,7 @@ function DeleteButton({ onClick, label }: { onClick: () => void; label: string }
 export default function Sidebar() {
   const router = useRouter();
   const { memory, refresh } = useMemoryPanel();
-  const { permission, subscribed, subscribe } = usePushSubscription();
+  const { permission, subscribed, subscribe, error: pushError } = usePushSubscription();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   async function handleLogout() {
@@ -108,6 +108,7 @@ export default function Sidebar() {
         >
           로그아웃
         </button>
+        {pushError && <p className="text-center text-[11px] text-rose-500">{pushError}</p>}
       </div>
 
       <section className="flex flex-col gap-1">

@@ -11,7 +11,7 @@ import InstallPrompt from "./InstallPrompt";
 
 export default function ChatWindow() {
   const { messages, isTyping, loading, sendMessage } = useChatStream();
-  const { permission, subscribed, subscribe } = usePushSubscription();
+  const { permission, subscribed, subscribe, error: pushError } = usePushSubscription();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -48,6 +48,12 @@ export default function ChatWindow() {
           <InstallPrompt />
         </div>
       </header>
+
+      {pushError && (
+        <p className="bg-rose-50 px-4 py-1.5 text-center text-xs text-rose-500 lg:hidden">
+          {pushError}
+        </p>
+      )}
 
       <div className="scrollbar-cute flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {loading ? (

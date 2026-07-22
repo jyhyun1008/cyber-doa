@@ -14,6 +14,7 @@ export function usePushSubscription() {
     "default"
   );
   const [subscribed, setSubscribed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("Notification" in window)) {
@@ -29,32 +30,47 @@ export function usePushSubscription() {
   }, []);
 
   const subscribe = useCallback(async () => {
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    setError(null);
+
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setError("이 브라우저는 알림을 지원하지 않아요.");
+      return;
+    }
 
     const permissionResult = await Notification.requestPermission();
     setPermission(permissionResult);
-    if (permissionResult !== "granted") return;
+    if (permissionResult !== "granted") {
+      setError("알림 권한이 허용되지 않았어요.");
+      return;
+    }
 
     const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
     if (!publicKey) {
       console.error("[push] NEXT_PUBLIC_VAPID_PUBLIC_KEY is not set");
+      setError("서버에 알림 설정이 안 돼있어요(관리자에게 문의해주세요).");
       return;
     }
 
-    const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(publicKey),
-    });
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
 
-    await fetch("/api/push/subscribe", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(subscription.toJSON()),
-    });
+      const res = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(subscription.toJSON()),
+      });
+      if (!res.ok) throw new Error(`subscribe request failed: ${res.status}`);
 
-    setSubscribed(true);
+      setSubscribed(true);
+    } catch (err) {
+      console.error("[push] subscribe failed", err);
+      setError("알림 등록에 실패했어요. 잠시 후 다시 시도해주세요.");
+    }
   }, []);
 
-  return { permission, subscribed, subscribe };
+  return { permission, subscribed, subscribe, error };
 }
