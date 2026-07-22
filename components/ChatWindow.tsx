@@ -19,9 +19,9 @@ export default function ChatWindow() {
   }, [messages, isTyping]);
 
   return (
-    <div className="mx-auto flex h-dvh max-w-lg flex-col">
-      <header className="flex items-center justify-between gap-2 border-b border-doa-pink-100/60 bg-white/60 px-4 py-3 backdrop-blur">
-        <div className="flex items-center gap-2">
+    <div className="mx-auto flex h-dvh w-full max-w-2xl flex-col lg:h-full lg:rounded-3xl lg:bg-white/60 lg:shadow-lg lg:shadow-doa-pink-100 lg:backdrop-blur">
+      <header className="flex items-center justify-between gap-2 border-b border-doa-pink-100/60 bg-white/60 px-4 py-3 backdrop-blur lg:rounded-t-3xl lg:bg-transparent lg:backdrop-blur-none">
+        <div className="flex items-center gap-2 lg:hidden">
           <Image
             src="/doa-icon.png"
             alt="DOA"
@@ -33,7 +33,10 @@ export default function ChatWindow() {
             DOA
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <span className="hidden font-[family-name:var(--font-cute-heading)] text-lg text-doa-pink-500 lg:inline">
+          DOA와의 대화
+        </span>
+        <div className="flex items-center gap-2 lg:hidden">
           {permission !== "unsupported" && !subscribed && (
             <button
               onClick={subscribe}

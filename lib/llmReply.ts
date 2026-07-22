@@ -78,6 +78,7 @@ export async function generateAssistantReply(
       model: OPENAI_MODEL,
       messages,
       tools: chatTools,
+      tool_choice: "required",
       parallel_tool_calls: true,
     });
 
@@ -86,6 +87,12 @@ export async function generateAssistantReply(
     messages.push(choice);
 
     if (!choice.tool_calls?.length) {
+      // tool_choice: "required" should prevent this, but models occasionally still reply in
+      // plain text — treat that text as the reply instead of discarding it.
+      const content = choice.content?.trim();
+      if (content) {
+        return { reply: content, thinking_seconds: 5 };
+      }
       break;
     }
 
