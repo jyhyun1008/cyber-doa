@@ -6,7 +6,7 @@
     "dev:scheduler": "tsx watch scheduler/index.ts",
     "dev:all": "concurrently -n web,scheduler -c blue,magenta \"npm:dev\" \"npm:dev:scheduler\"",
     "build": "next build",
-    "start": "next start -p 3333 -H 0.0.0.0",
+    "start": "next start -H 0.0.0.0",
     "start:scheduler": "tsx scheduler/index.ts",
     "lint": "tsc --noEmit",
     "generate-icons": "tsx scripts/generate-icons.ts",
