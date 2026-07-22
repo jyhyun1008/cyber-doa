@@ -119,7 +119,7 @@ export default function Sidebar() {
           <span className={`transition-transform ${isProfileOpen ? "rotate-180" : ""}`}>▾</span>
         </button>
         {isProfileOpen && (
-          <p className="line-clamp-4 rounded-2xl bg-white/70 p-3 text-xs leading-relaxed text-doa-ink/80">
+          <p className="scrollbar-cute max-h-32 overflow-y-auto rounded-2xl bg-white/70 p-3 text-xs leading-relaxed whitespace-pre-wrap text-doa-ink/80">
             {memory?.profile ? memory.profile : "아직 알고 있는 정보가 없어요."}
           </p>
         )}
