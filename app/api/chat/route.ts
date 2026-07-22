@@ -54,7 +54,7 @@ async function handleReply() {
   });
   const history = recent
     .reverse()
-    .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+    .map((m) => ({ role: m.role as "user" | "assistant", content: m.content, createdAt: m.createdAt }));
 
   const { reply, thinking_seconds } = await generateAssistantReply(history);
   const delaySeconds = resolveThinkingDelaySeconds(reply, thinking_seconds);

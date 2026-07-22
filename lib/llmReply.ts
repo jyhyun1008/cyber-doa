@@ -4,7 +4,22 @@ import { chatTools, executeMemoryTool, MEMORY_TOOL_NAMES } from "./tools";
 import { prisma } from "./db";
 import { formatKoreanDateTime, isoKstOffset } from "./time";
 
-export type ChatMessage = { role: "user" | "assistant"; content: string };
+export type ChatMessage = { role: "user" | "assistant"; content: string; createdAt: Date };
+
+const LEADING_TIMESTAMP_TAG = /^\s*\[\d{1,2}\/\d{1,2}\s+\d{1,2}:\d{2}\]\s*/;
+
+/** The model occasionally copies the "[M/D HH:mm]" context marker into its own reply — strip it if so. */
+function stripLeadingTimestampTag(text: string): string {
+  return text.replace(LEADING_TIMESTAMP_TAG, "");
+}
+
+function formatMessageTimestamp(date: Date): string {
+  // "2026-07-22T14:23:00+09:00" -> "7/22 14:23"
+  const match = isoKstOffset(date).match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})/);
+  if (!match) return isoKstOffset(date);
+  const [, , month, day, hhmm] = match;
+  return `${Number(month)}/${Number(day)} ${hhmm}`;
+}
 
 const FALLBACK_REPLY = { reply: "음... 다시 한 번 말씀해 주실 수 있으세요?", thinking_seconds: 2 };
 
@@ -67,6 +82,7 @@ ${scheduleLines}
 - 상대적 시간 표현(예: "4시간 후", "30분 후")은 위에 적힌 "현재 시각"의 ISO 값을 기준으로 정확히 더하거나 빼서 add_schedule에 전달해.
 - add_schedule에 전달하는 scheduledAt은 반드시 위 "현재 시각" ISO와 같은 형식으로 "+09:00" 오프셋을 붙여서 전달해(예: "2026-07-22T13:58:00+09:00"). "Z"나 UTC로 변환하지 마 — 위에 보이는 시:분 숫자를 그대로 쓰고 끝에 +09:00만 붙이면 돼.
 - 답장은 항상 이번 유저 메시지(가장 마지막 메시지)에 대한 반응이어야 해. 이전 턴에서 이미 한 말을 이유 없이 반복하지 마.
+- 대화 내역의 각 메시지 앞에는 "[월/일 시:분]" 형식으로 보낸 시각이 참고용으로 붙어 있어(이건 시스템이 붙인 메타데이터일 뿐, 유저가 실제로 쓴 말이 아니야). 마지막 유저 메시지와 그 전 메시지 사이에 시간이 많이 비었으면(몇 시간, 하루 이상 등) 자연스럽게 알아채고 반응해도 좋아(예: "오랜만이에요!"). 하지만 send_reply의 reply 값에는 "[월/일 시:분]" 같은 대괄호 표기를 절대 그대로 포함하지 마 — 자연스러운 문장으로만 답해.
 - 답장을 할 때는 send_reply 도구를 사용해. 다른 메모리 도구를 호출했다면 그 다음에 이어서 send_reply도 호출해.
 - thinking_seconds는 실제로 고민해야 할 만큼만 크게 잡아. 짧고 간단한 대답(예: "네!", "넵")은 1~3초, 복잡하거나 신중히 생각해야 하는 답은 최대 60초까지도 가능.`;
 }
@@ -78,7 +94,13 @@ export async function generateAssistantReply(
 
   const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
     { role: "system", content: systemPrompt },
-    ...history.map((m) => ({ role: m.role, content: m.content }) as OpenAI.Chat.Completions.ChatCompletionMessageParam),
+    ...history.map(
+      (m) =>
+        ({
+          role: m.role,
+          content: `[${formatMessageTimestamp(m.createdAt)}] ${m.content}`,
+        }) as OpenAI.Chat.Completions.ChatCompletionMessageParam
+    ),
   ];
 
   for (let iteration = 0; iteration < 5; iteration++) {
@@ -99,7 +121,7 @@ export async function generateAssistantReply(
       // treat that text as the reply instead of discarding it.
       const content = choice.content?.trim();
       if (content) {
-        return { reply: content, thinking_seconds: 5 };
+        return { reply: stripLeadingTimestampTag(content), thinking_seconds: 5 };
       }
       break;
     }
@@ -111,7 +133,7 @@ export async function generateAssistantReply(
       const args = safeParseArgs(call.function.arguments);
       if (call.function.name === "send_reply") {
         finalReply = {
-          reply: String(args.reply ?? ""),
+          reply: stripLeadingTimestampTag(String(args.reply ?? "")),
           thinking_seconds: Number(args.thinking_seconds ?? 3),
         };
       } else if ((MEMORY_TOOL_NAMES as readonly string[]).includes(call.function.name)) {
