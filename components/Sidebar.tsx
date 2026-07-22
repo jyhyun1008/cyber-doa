@@ -161,7 +161,7 @@ export default function Sidebar() {
                 routine.isActive ? "bg-white/70 text-doa-ink/80" : "bg-white/40 text-doa-ink/40"
               }`}
             >
-              <span>
+              <span className="min-w-0 truncate">
                 {routine.title}
                 <span className="ml-1 text-doa-blue-300">
                   · {formatDaysOfWeek(routine.daysOfWeek)} {routine.time}
@@ -171,13 +171,13 @@ export default function Sidebar() {
                 <button
                   onClick={() => toggleRoutine(routine.id, routine.isActive)}
                   aria-label={routine.isActive ? "루틴 끄기" : "루틴 켜기"}
-                  className={`relative h-4 w-7 rounded-full transition-colors ${
+                  className={`inline-flex h-4 w-7 shrink-0 items-center rounded-full px-0.5 transition-colors ${
                     routine.isActive ? "bg-doa-pink-300" : "bg-doa-ink/20"
                   }`}
                 >
                   <span
-                    className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${
-                      routine.isActive ? "translate-x-3.5" : "translate-x-0.5"
+                    className={`h-3 w-3 shrink-0 rounded-full bg-white shadow transition-transform ${
+                      routine.isActive ? "translate-x-3" : "translate-x-0"
                     }`}
                   />
                 </button>
