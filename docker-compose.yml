@@ -1,6 +1,9 @@
 services:
   web:
-    build: .
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY: "${NEXT_PUBLIC_VAPID_PUBLIC_KEY}"
     command: sh -c "npx prisma migrate deploy && npm run start"
     ports:
       - "${PORT:-3000}:3000"
@@ -20,7 +23,10 @@ services:
       retries: 3
 
   scheduler:
-    build: .
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_VAPID_PUBLIC_KEY: "${NEXT_PUBLIC_VAPID_PUBLIC_KEY}"
     command: npm run start:scheduler
     env_file: .env
     environment:

@@ -14,6 +14,10 @@ COPY . .
 # placeholder only, so `prisma generate`/`next build` can resolve a DATABASE_URL at build time —
 # the real value is supplied at container runtime via docker-compose's env_file/environment
 ENV DATABASE_URL="file:./build-placeholder.db"
+# NEXT_PUBLIC_* vars are inlined into the client bundle at build time, so they must be passed in
+# as a build ARG — .env is excluded from the build context (.dockerignore) and read too late otherwise
+ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY
+ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY
 RUN npx prisma generate
 RUN npm run build
 
