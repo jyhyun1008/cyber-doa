@@ -5,7 +5,7 @@ export async function GET() {
   const [user, todos, routines, schedules] = await Promise.all([
     prisma.appUser.findUnique({ where: { id: 1 } }),
     prisma.todo.findMany({ where: { isDone: false }, orderBy: { deadline: "asc" }, take: 10 }),
-    prisma.routine.findMany({ where: { isActive: true }, take: 10 }),
+    prisma.routine.findMany({ take: 20, orderBy: { createdAt: "asc" } }),
     prisma.schedule.findMany({ where: { isSent: false }, orderBy: { scheduledAt: "asc" }, take: 10 }),
   ]);
 
@@ -21,6 +21,7 @@ export async function GET() {
       title: r.title,
       daysOfWeek: JSON.parse(r.daysOfWeek) as number[],
       time: r.time,
+      isActive: r.isActive,
     })),
     schedules: schedules.map((s) => ({
       id: s.id,

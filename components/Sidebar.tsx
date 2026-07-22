@@ -28,9 +28,21 @@ function formatDateTime(iso: string) {
   }).format(new Date(iso));
 }
 
+function DeleteButton({ onClick, label }: { onClick: () => void; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      className="shrink-0 rounded-full px-1.5 text-doa-ink/40 hover:text-rose-500"
+    >
+      ✕
+    </button>
+  );
+}
+
 export default function Sidebar() {
   const router = useRouter();
-  const memory = useMemoryPanel();
+  const { memory, refresh } = useMemoryPanel();
   const { permission, subscribed, subscribe } = usePushSubscription();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
@@ -38,6 +50,30 @@ export default function Sidebar() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.replace("/login");
     router.refresh();
+  }
+
+  async function deleteTodo(id: string) {
+    await fetch(`/api/todos/${id}`, { method: "DELETE" });
+    refresh();
+  }
+
+  async function deleteSchedule(id: string) {
+    await fetch(`/api/schedules/${id}`, { method: "DELETE" });
+    refresh();
+  }
+
+  async function toggleRoutine(id: string, isActive: boolean) {
+    await fetch(`/api/routines/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ isActive: !isActive }),
+    });
+    refresh();
+  }
+
+  async function deleteRoutine(id: string) {
+    await fetch(`/api/routines/${id}`, { method: "DELETE" });
+    refresh();
   }
 
   return (
@@ -96,11 +132,17 @@ export default function Sidebar() {
         )}
         <ul className="flex flex-col gap-1">
           {memory?.todos.map((todo) => (
-            <li key={todo.id} className="rounded-xl bg-white/70 px-3 py-1.5 text-xs text-doa-ink/80">
-              {todo.title}
-              {todo.deadline && (
-                <span className="ml-1 text-doa-pink-500">· {formatDateTime(todo.deadline)}</span>
-              )}
+            <li
+              key={todo.id}
+              className="flex items-center justify-between gap-1 rounded-xl bg-white/70 px-3 py-1.5 text-xs text-doa-ink/80"
+            >
+              <span>
+                {todo.title}
+                {todo.deadline && (
+                  <span className="ml-1 text-doa-pink-500">· {formatDateTime(todo.deadline)}</span>
+                )}
+              </span>
+              <DeleteButton onClick={() => deleteTodo(todo.id)} label="할 일 삭제" />
             </li>
           ))}
         </ul>
@@ -113,10 +155,33 @@ export default function Sidebar() {
         )}
         <ul className="flex flex-col gap-1">
           {memory?.routines.map((routine) => (
-            <li key={routine.id} className="rounded-xl bg-white/70 px-3 py-1.5 text-xs text-doa-ink/80">
-              {routine.title}
-              <span className="ml-1 text-doa-blue-300">
-                · {formatDaysOfWeek(routine.daysOfWeek)} {routine.time}
+            <li
+              key={routine.id}
+              className={`flex items-center justify-between gap-1 rounded-xl px-3 py-1.5 text-xs ${
+                routine.isActive ? "bg-white/70 text-doa-ink/80" : "bg-white/40 text-doa-ink/40"
+              }`}
+            >
+              <span>
+                {routine.title}
+                <span className="ml-1 text-doa-blue-300">
+                  · {formatDaysOfWeek(routine.daysOfWeek)} {routine.time}
+                </span>
+              </span>
+              <span className="flex shrink-0 items-center gap-1">
+                <button
+                  onClick={() => toggleRoutine(routine.id, routine.isActive)}
+                  aria-label={routine.isActive ? "루틴 끄기" : "루틴 켜기"}
+                  className={`relative h-4 w-7 rounded-full transition-colors ${
+                    routine.isActive ? "bg-doa-pink-300" : "bg-doa-ink/20"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${
+                      routine.isActive ? "translate-x-3.5" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+                <DeleteButton onClick={() => deleteRoutine(routine.id)} label="루틴 삭제" />
               </span>
             </li>
           ))}
@@ -130,9 +195,15 @@ export default function Sidebar() {
         )}
         <ul className="flex flex-col gap-1">
           {memory?.schedules.map((schedule) => (
-            <li key={schedule.id} className="rounded-xl bg-white/70 px-3 py-1.5 text-xs text-doa-ink/80">
-              {schedule.title}
-              <span className="ml-1 text-doa-pink-500">· {formatDateTime(schedule.scheduledAt)}</span>
+            <li
+              key={schedule.id}
+              className="flex items-center justify-between gap-1 rounded-xl bg-white/70 px-3 py-1.5 text-xs text-doa-ink/80"
+            >
+              <span>
+                {schedule.title}
+                <span className="ml-1 text-doa-pink-500">· {formatDateTime(schedule.scheduledAt)}</span>
+              </span>
+              <DeleteButton onClick={() => deleteSchedule(schedule.id)} label="일정 삭제" />
             </li>
           ))}
         </ul>
