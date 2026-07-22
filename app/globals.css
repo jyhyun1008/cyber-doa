@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+@theme {
+  --color-doa-cream: #fff9fb;
+  --color-doa-pink-50: #fff0f5;
+  --color-doa-pink-100: #fadce8;
+  --color-doa-pink-300: #f6a6c6;
+  --color-doa-pink-500: #ec7fae;
+  --color-doa-blue-100: #cdebfa;
+  --color-doa-blue-300: #8fd3f4;
+  --color-doa-ink: #6b4d5a;
+  --font-cute-heading: var(--font-jua);
+  --font-cute-body: var(--font-gaegu);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: linear-gradient(180deg, var(--color-doa-blue-100) 0%, var(--color-doa-cream) 40%);
+  color: var(--color-doa-ink);
+  font-family: var(--font-cute-body), sans-serif;
+}
+
+::selection {
+  background: var(--color-doa-pink-300);
+  color: white;
+}
+
+.scrollbar-cute::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-cute::-webkit-scrollbar-thumb {
+  background: var(--color-doa-pink-300);
+  border-radius: 999px;
+}

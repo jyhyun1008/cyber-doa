@@ -1,0 +1,52 @@
+{
+  "name": "doa",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "next dev",
+    "dev:scheduler": "tsx watch scheduler/index.ts",
+    "dev:all": "concurrently -n web,scheduler -c blue,magenta \"npm:dev\" \"npm:dev:scheduler\"",
+    "build": "next build",
+    "start": "next start",
+    "start:scheduler": "tsx scheduler/index.ts",
+    "lint": "tsc --noEmit",
+    "generate-icons": "tsx scripts/generate-icons.ts",
+    "generate-vapid": "tsx scripts/generate-vapid-keys.ts",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "postinstall": "prisma generate"
+  },
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.9.0",
+    "@prisma/client": "^7.9.0",
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^13.0.1",
+    "dotenv": "^17.4.2",
+    "jose": "^6.2.4",
+    "next": "^16.2.11",
+    "node-cron": "^4.6.0",
+    "openai": "^6.48.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "tsx": "^4.23.1",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^26.1.1",
+    "@types/node-cron": "^3.0.11",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@types/web-push": "^3.6.4",
+    "concurrently": "^10.0.3",
+    "prisma": "^7.9.0",
+    "sharp": "^0.35.3",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "shell-quote": "1.10.0"
+  }
+}

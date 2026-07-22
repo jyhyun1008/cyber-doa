@@ -1,0 +1,67 @@
+datasource db {
+  provider = "sqlite"
+}
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+model AppUser {
+  id                 Int       @id @default(1)
+  username           String?
+  passwordHash       String?
+  profile            String    @default("")
+  lastSeenAt         DateTime?
+  lastIdlePingSentAt DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model Message {
+  id              String   @id @default(cuid())
+  role            String
+  content         String
+  source          String   @default("chat")
+  thinkingSeconds Int?
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model Todo {
+  id                         String    @id @default(cuid())
+  title                      String
+  deadline                   DateTime?
+  isDone                     Boolean   @default(false)
+  lastDeadlineReminderSentAt DateTime?
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
+}
+
+model Routine {
+  id                String   @id @default(cuid())
+  title             String
+  daysOfWeek        String
+  time              String
+  isActive          Boolean  @default(true)
+  lastTriggeredDate String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Schedule {
+  id          String   @id @default(cuid())
+  title       String
+  scheduledAt DateTime
+  isSent      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+}
