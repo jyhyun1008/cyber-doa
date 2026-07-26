@@ -29,6 +29,30 @@ function formatDateTime(iso: string) {
   }).format(new Date(iso));
 }
 
+function LockIcon({ locked }: { locked: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0"
+      aria-hidden="true"
+    >
+      <rect x="4" y="11" width="16" height="10" rx="2" />
+      {locked ? (
+        <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+      ) : (
+        <path d="M8 11V7a4 4 0 0 1 7.5-2" />
+      )}
+    </svg>
+  );
+}
+
 function DeleteButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button
@@ -41,7 +65,13 @@ function DeleteButton({ onClick, label }: { onClick: () => void; label: string }
   );
 }
 
-export default function Sidebar() {
+export default function Sidebar({
+  mobileOpen = false,
+  onClose,
+}: {
+  mobileOpen?: boolean;
+  onClose?: () => void;
+}) {
   const router = useRouter();
   const { memory, refresh } = useMemoryPanel();
   const { permission, subscribed, subscribe, error: pushError } = usePushSubscription();
@@ -79,8 +109,27 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="hidden w-72 shrink-0 flex-col gap-5 overflow-y-auto rounded-3xl bg-white/60 p-5 shadow-lg shadow-doa-pink-100 backdrop-blur lg:flex">
-      <div className="flex flex-col items-center gap-2 text-center">
+    <>
+      {mobileOpen && (
+        <div
+          onClick={onClose}
+          className="fixed inset-0 z-40 bg-black/30 lg:hidden"
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex w-72 shrink-0 flex-col gap-5 overflow-y-auto bg-doa-cream p-5 shadow-lg shadow-doa-pink-100 backdrop-blur transition-transform duration-200 lg:static lg:z-auto lg:w-72 lg:translate-x-0 lg:rounded-3xl lg:bg-white/60 ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <button
+          onClick={onClose}
+          aria-label="메뉴 닫기"
+          className="self-end rounded-full px-2 text-doa-ink/50 lg:hidden"
+        >
+          ✕
+        </button>
+        <div className="flex flex-col items-center gap-2 text-center">
         <Image
           src="/doa-icon.png"
           alt="DOA"
@@ -109,9 +158,10 @@ export default function Sidebar() {
         {settings?.isOwner && (
           <button
             onClick={() => toggleSignup(!settings.signupEnabled)}
-            className="rounded-full bg-white/80 px-3 py-2 text-xs text-doa-ink/60 shadow-sm hover:bg-white"
+            className="flex items-center justify-center gap-1.5 rounded-full bg-white/80 px-3 py-2 text-xs text-doa-ink/60 shadow-sm hover:bg-white"
           >
-            {settings.signupEnabled ? "🔓 새 가입 허용 중" : "🔒 새 가입 막음"}
+            <LockIcon locked={!settings.signupEnabled} />
+            {settings.signupEnabled ? "새 가입 허용 중" : "새 가입 막음"}
           </button>
         )}
         <button
@@ -221,6 +271,7 @@ export default function Sidebar() {
           ))}
         </ul>
       </section>
-    </aside>
+      </aside>
+    </>
   );
 }

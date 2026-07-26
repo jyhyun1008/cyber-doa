@@ -3,15 +3,12 @@
 import { useEffect, useRef } from "react";
 import Image from "next/image";
 import { useChatStream } from "@/hooks/useChatStream";
-import { usePushSubscription } from "@/hooks/usePushSubscription";
 import MessageBubble from "./MessageBubble";
 import TypingIndicator from "./TypingIndicator";
 import ChatInput from "./ChatInput";
-import InstallPrompt from "./InstallPrompt";
 
-export default function ChatWindow() {
+export default function ChatWindow({ onOpenMenu }: { onOpenMenu: () => void }) {
   const { messages, isTyping, loading, sendMessage } = useChatStream();
-  const { permission, subscribed, subscribe, error: pushError } = usePushSubscription();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -36,24 +33,16 @@ export default function ChatWindow() {
         <span className="hidden font-[family-name:var(--font-cute-heading)] text-lg text-doa-pink-500 lg:inline">
           DOA와의 대화
         </span>
-        <div className="flex items-center gap-2 lg:hidden">
-          {permission !== "unsupported" && !subscribed && (
-            <button
-              onClick={subscribe}
-              className="rounded-full bg-white/80 px-3 py-1 text-xs text-doa-pink-500 shadow-sm"
-            >
-              알림 켜기
-            </button>
-          )}
-          <InstallPrompt />
-        </div>
+        <button
+          onClick={onOpenMenu}
+          aria-label="메뉴 열기"
+          className="rounded-full bg-white/80 p-2 text-doa-pink-500 shadow-sm lg:hidden"
+        >
+          <span className="block h-0.5 w-5 rounded-full bg-current" />
+          <span className="my-1 block h-0.5 w-5 rounded-full bg-current" />
+          <span className="block h-0.5 w-5 rounded-full bg-current" />
+        </button>
       </header>
-
-      {pushError && (
-        <p className="bg-rose-50 px-4 py-1.5 text-center text-xs text-rose-500 lg:hidden">
-          {pushError}
-        </p>
-      )}
 
       <div className="scrollbar-cute flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {loading ? (
