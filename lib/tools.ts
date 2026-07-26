@@ -83,6 +83,70 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
+      name: "complete_todo",
+      strict: true,
+      description: "유저가 이미 끝냈다고 말한 할 일을 완료 처리해서 목록에서 지움. title로 기존 할 일을 찾아서 처리.",
+      parameters: {
+        type: "object",
+        properties: { title: { type: "string", description: "완료할 할 일의 제목(위 할 일 목록 참고)" } },
+        required: ["title"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_todo",
+      strict: true,
+      description: "유저가 더 이상 안 하겠다고 하거나 취소한 할 일을 목록에서 삭제.",
+      parameters: {
+        type: "object",
+        properties: { title: { type: "string", description: "삭제할 할 일의 제목(위 할 일 목록 참고)" } },
+        required: ["title"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "update_schedule",
+      strict: true,
+      description:
+        "이미 등록된 1회성 일정의 시간이나 제목을 변경. title로 기존 일정을 찾아서 수정. newScheduledAt/newTitle 중 바꿀 값만 채우고 나머지는 null.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "변경할 기존 일정의 제목(위 예정된 일정 참고)" },
+          newScheduledAt: {
+            type: ["string", "null"],
+            description: "새 시각, ISO 8601 +09:00(KST) 오프셋 포함. 안 바꾸면 null.",
+          },
+          newTitle: { type: ["string", "null"], description: "새 제목. 안 바꾸면 null." },
+        },
+        required: ["title", "newScheduledAt", "newTitle"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "cancel_schedule",
+      strict: true,
+      description: "유저가 취소하거나 없던 일로 하자고 한 1회성 일정을 삭제.",
+      parameters: {
+        type: "object",
+        properties: { title: { type: "string", description: "취소할 일정의 제목(위 예정된 일정 참고)" } },
+        required: ["title"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "send_reply",
       strict: true,
       description:
@@ -111,10 +175,23 @@ export const MEMORY_TOOL_NAMES = [
   "add_todo",
   "add_routine",
   "add_schedule",
+  "complete_todo",
+  "delete_todo",
+  "update_schedule",
+  "cancel_schedule",
 ] as const;
 
 function sameTitle(a: string, b: string) {
   return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+function findBestTitleMatch<T extends { title: string }>(items: T[], title: string): T | undefined {
+  const norm = title.trim().toLowerCase();
+  if (!norm) return undefined;
+  return (
+    items.find((i) => sameTitle(i.title, title)) ??
+    items.find((i) => i.title.toLowerCase().includes(norm) || norm.includes(i.title.toLowerCase()))
+  );
 }
 
 export async function executeMemoryTool(name: string, args: Record<string, unknown>) {
@@ -179,6 +256,51 @@ export async function executeMemoryTool(name: string, args: Record<string, unkno
       }
 
       await prisma.schedule.create({ data: { title, scheduledAt } });
+      return { ok: true };
+    }
+    case "complete_todo": {
+      const title = String(args.title ?? "").trim();
+      if (!title) return { ok: false, error: "title is required" };
+      const open = await prisma.todo.findMany({ where: { isDone: false } });
+      const match = findBestTitleMatch(open, title);
+      if (!match) return { ok: false, error: "matching todo not found" };
+      await prisma.todo.update({ where: { id: match.id }, data: { isDone: true } });
+      return { ok: true };
+    }
+    case "delete_todo": {
+      const title = String(args.title ?? "").trim();
+      if (!title) return { ok: false, error: "title is required" };
+      const open = await prisma.todo.findMany({ where: { isDone: false } });
+      const match = findBestTitleMatch(open, title);
+      if (!match) return { ok: false, error: "matching todo not found" };
+      await prisma.todo.delete({ where: { id: match.id } });
+      return { ok: true };
+    }
+    case "update_schedule": {
+      const title = String(args.title ?? "").trim();
+      if (!title) return { ok: false, error: "title is required" };
+      const pending = await prisma.schedule.findMany({ where: { isSent: false } });
+      const match = findBestTitleMatch(pending, title);
+      if (!match) return { ok: false, error: "matching schedule not found" };
+
+      const data: { title?: string; scheduledAt?: Date } = {};
+      if (args.newTitle) data.title = String(args.newTitle).trim();
+      if (args.newScheduledAt) {
+        const newDate = new Date(String(args.newScheduledAt));
+        if (!isNaN(newDate.getTime())) data.scheduledAt = newDate;
+      }
+      if (!Object.keys(data).length) return { ok: false, error: "nothing to update" };
+
+      await prisma.schedule.update({ where: { id: match.id }, data });
+      return { ok: true };
+    }
+    case "cancel_schedule": {
+      const title = String(args.title ?? "").trim();
+      if (!title) return { ok: false, error: "title is required" };
+      const pending = await prisma.schedule.findMany({ where: { isSent: false } });
+      const match = findBestTitleMatch(pending, title);
+      if (!match) return { ok: false, error: "matching schedule not found" };
+      await prisma.schedule.delete({ where: { id: match.id } });
       return { ok: true };
     }
     default:
