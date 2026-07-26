@@ -1,6 +1,6 @@
 import type OpenAI from "openai";
 import { openai, OPENAI_MODEL } from "./openai";
-import { chatTools, executeMemoryTool, MEMORY_TOOL_NAMES } from "./tools";
+import { chatTools, executeMemoryTool, MEMORY_TOOL_NAMES, dayIndicesToLabels } from "./tools";
 import { prisma } from "./db";
 import { formatKoreanDateTime, isoKstOffset } from "./time";
 
@@ -39,7 +39,7 @@ export async function buildSystemPrompt(): Promise<string> {
 
   const routineLines = routines.length
     ? routines
-        .map((r) => `- ${r.title} (요일코드 ${r.daysOfWeek}, ${r.time})`)
+        .map((r) => `- ${r.title} (요일: ${dayIndicesToLabels(JSON.parse(r.daysOfWeek))}, ${r.time})`)
         .join("\n")
     : "(없음)";
 

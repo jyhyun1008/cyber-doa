@@ -1,6 +1,24 @@
 import type OpenAI from "openai";
 import { prisma } from "./db";
 
+const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"] as const;
+
+/** Converts Korean day-name labels (e.g. ["월","화"]) to internal 0=Sun..6=Sat indices, stably sorted. */
+function dayLabelsToIndices(labels: unknown[]): number[] {
+  const indices = labels
+    .map((l) => DAY_LABELS.indexOf(String(l) as (typeof DAY_LABELS)[number]))
+    .filter((i) => i >= 0);
+  return [...new Set(indices)].sort((a, b) => a - b);
+}
+
+/** Converts internal 0=Sun..6=Sat indices back to Korean day-name labels, for display to the model. */
+export function dayIndicesToLabels(indices: number[]): string {
+  return indices
+    .filter((i) => i >= 0 && i <= 6)
+    .map((i) => DAY_LABELS[i])
+    .join(",");
+}
+
 export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
@@ -49,8 +67,8 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           title: { type: "string" },
           daysOfWeek: {
             type: "array",
-            items: { type: "integer", minimum: 0, maximum: 6 },
-            description: "0=일요일 .. 6=토요일. 매일이면 [0,1,2,3,4,5,6]",
+            items: { type: "string", enum: ["일", "월", "화", "수", "목", "금", "토"] },
+            description: "루틴이 실행될 요일 목록(한글 요일명 그대로). 매일이면 [\"일\",\"월\",\"화\",\"수\",\"목\",\"금\",\"토\"]",
           },
           time: { type: "string", description: "24시간 형식 HH:mm" },
         },
@@ -157,8 +175,9 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
           title: { type: "string", description: "변경할 기존 루틴의 제목(위 반복 루틴 참고)" },
           newDaysOfWeek: {
             type: ["array", "null"],
-            items: { type: "integer", minimum: 0, maximum: 6 },
-            description: "새 요일 배열(0=일..6=토). 안 바꾸면 null. 예: 일요일만 빼려면 매일 배열에서 0을 제외.",
+            items: { type: "string", enum: ["일", "월", "화", "수", "목", "금", "토"] },
+            description:
+              "바뀐 뒤 남아야 할 요일 전체 목록(한글 요일명). 안 바꾸면 null. 예: 매일 하던 걸 일요일만 빼려면 [\"월\",\"화\",\"수\",\"목\",\"금\",\"토\"](일요일 제외 나머지 전부).",
           },
           newTime: { type: ["string", "null"], description: "새 시각 HH:mm. 안 바꾸면 null." },
           newTitle: { type: ["string", "null"], description: "새 제목. 안 바꾸면 null." },
@@ -262,9 +281,7 @@ export async function executeMemoryTool(name: string, args: Record<string, unkno
     }
     case "add_routine": {
       const title = String(args.title ?? "").trim();
-      const daysOfWeek = Array.isArray(args.daysOfWeek)
-        ? (args.daysOfWeek as unknown[]).map((d) => Number(d)).filter((d) => d >= 0 && d <= 6)
-        : [];
+      const daysOfWeek = Array.isArray(args.daysOfWeek) ? dayLabelsToIndices(args.daysOfWeek) : [];
       const time = String(args.time ?? "").trim();
       if (!title || !daysOfWeek.length || !/^\d{2}:\d{2}$/.test(time)) {
         return { ok: false, error: "invalid routine arguments" };
@@ -357,7 +374,7 @@ export async function executeMemoryTool(name: string, args: Record<string, unkno
         if (/^\d{2}:\d{2}$/.test(time)) data.time = time;
       }
       if (Array.isArray(args.newDaysOfWeek)) {
-        const days = (args.newDaysOfWeek as unknown[]).map((d) => Number(d)).filter((d) => d >= 0 && d <= 6);
+        const days = dayLabelsToIndices(args.newDaysOfWeek);
         if (days.length) data.daysOfWeek = JSON.stringify(days);
       }
       if (!Object.keys(data).length) return { ok: false, error: "nothing to update" };
