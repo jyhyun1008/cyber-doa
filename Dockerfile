@@ -31,6 +31,7 @@ COPY prisma ./prisma
 COPY public ./public
 COPY lib ./lib
 COPY scheduler ./scheduler
+COPY scripts ./scripts
 
 EXPOSE 3000
 CMD ["npm", "run", "start"]
