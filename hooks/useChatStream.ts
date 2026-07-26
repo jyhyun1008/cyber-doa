@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@/types";
+import { getStoredOpenAIKey } from "./useOpenAIKey";
 
 export function useChatStream() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -52,9 +53,13 @@ export function useChatStream() {
     async (text: string) => {
       const trimmed = text.trim();
       if (!trimmed) return;
+      const apiKey = getStoredOpenAIKey();
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          ...(apiKey ? { "x-openai-key": apiKey } : {}),
+        },
         body: JSON.stringify({ text: trimmed }),
       });
       if (!res.ok) return;

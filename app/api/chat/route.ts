@@ -35,6 +35,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "text is required" }, { status: 400 });
   }
 
+  // optional bring-your-own-key: sent per-request from the browser (localStorage), never persisted
+  const apiKey = request.headers.get("x-openai-key");
+
   const userMessage = await prisma.message.create({
     data: { userId, role: "user", content: text, source: "chat" },
   });
@@ -44,7 +47,7 @@ export async function POST(request: NextRequest) {
     data: { lastSeenAt: new Date() },
   });
 
-  handleReply(userId).catch((err) => {
+  handleReply(userId, apiKey).catch((err) => {
     console.error("[chat] reply pipeline failed", err);
     broadcastChatEvent(userId, { type: "typing:stop" });
   });
@@ -52,7 +55,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ userMessageId: userMessage.id });
 }
 
-async function handleReply(userId: string) {
+async function handleReply(userId: string, apiKey: string | null) {
   broadcastChatEvent(userId, { type: "typing:start" });
 
   const recent = await prisma.message.findMany({
@@ -64,7 +67,7 @@ async function handleReply(userId: string) {
     .reverse()
     .map((m) => ({ role: m.role as "user" | "assistant", content: m.content, createdAt: m.createdAt }));
 
-  const { reply, thinking_seconds } = await generateAssistantReply(userId, history);
+  const { reply, thinking_seconds } = await generateAssistantReply(userId, history, apiKey);
   const delaySeconds = resolveThinkingDelaySeconds(reply, thinking_seconds);
   await sleep(delaySeconds * 1000);
 

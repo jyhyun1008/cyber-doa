@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useMemoryPanel } from "@/hooks/useMemoryPanel";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { useAppSettings } from "@/hooks/useAppSettings";
+import { useOpenAIKey } from "@/hooks/useOpenAIKey";
 import InstallPrompt from "./InstallPrompt";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -76,7 +77,10 @@ export default function Sidebar({
   const { memory, refresh } = useMemoryPanel();
   const { permission, subscribed, subscribe, error: pushError } = usePushSubscription();
   const { settings, toggleSignup } = useAppSettings();
+  const { apiKey, setApiKey, clearApiKey } = useOpenAIKey();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isApiKeyOpen, setIsApiKeyOpen] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState("");
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -106,6 +110,17 @@ export default function Sidebar({
   async function deleteRoutine(id: string) {
     await fetch(`/api/routines/${id}`, { method: "DELETE" });
     refresh();
+  }
+
+  async function deleteBucketItem(id: string) {
+    await fetch(`/api/bucket/${id}`, { method: "DELETE" });
+    refresh();
+  }
+
+  function handleSaveApiKey(e: React.FormEvent) {
+    e.preventDefault();
+    setApiKey(apiKeyInput);
+    setApiKeyInput("");
   }
 
   return (
@@ -212,6 +227,24 @@ export default function Sidebar({
       </section>
 
       <section className="flex flex-col gap-1">
+        <h2 className="text-xs font-bold text-doa-pink-500">버킷리스트</h2>
+        {memory && memory.bucketItems.length === 0 && (
+          <p className="text-xs text-doa-ink/50">등록된 버킷리스트가 없어요.</p>
+        )}
+        <ul className="flex flex-col gap-1">
+          {memory?.bucketItems.map((item) => (
+            <li
+              key={item.id}
+              className="flex items-center justify-between gap-1 rounded-xl bg-white/70 px-3 py-1.5 text-xs text-doa-ink/80"
+            >
+              <span>{item.title}</span>
+              <DeleteButton onClick={() => deleteBucketItem(item.id)} label="버킷리스트 삭제" />
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="flex flex-col gap-1">
         <h2 className="text-xs font-bold text-doa-pink-500">반복 루틴</h2>
         {memory && memory.routines.length === 0 && (
           <p className="text-xs text-doa-ink/50">등록된 루틴이 없어요.</p>
@@ -270,6 +303,51 @@ export default function Sidebar({
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="flex flex-col gap-1">
+        <button
+          onClick={() => setIsApiKeyOpen((prev) => !prev)}
+          className="flex items-center justify-between text-xs font-bold text-doa-pink-500"
+        >
+          <span>내 OpenAI API 키</span>
+          <span className={`transition-transform ${isApiKeyOpen ? "rotate-180" : ""}`}>▾</span>
+        </button>
+        {isApiKeyOpen && (
+          <div className="flex flex-col gap-1.5 rounded-2xl bg-white/70 p-3">
+            <p className="text-[11px] leading-relaxed text-doa-ink/60">
+              내 키를 넣으면 채팅은 내 키로 동작해요(이 브라우저에만 저장, 서버에 저장 안 됨). 선톡은 항상 기본 키로
+              보내져요.
+            </p>
+            <p className="text-[11px] font-bold text-doa-ink/70">
+              {apiKey ? "현재: 내 API 키 사용 중" : "현재: 기본(공유) 키 사용 중"}
+            </p>
+            <form onSubmit={handleSaveApiKey} className="flex gap-1">
+              <input
+                type="password"
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                placeholder="sk-..."
+                className="min-w-0 flex-1 rounded-full border border-doa-pink-100 bg-white px-2.5 py-1.5 text-[11px] outline-none focus:border-doa-pink-300"
+              />
+              <button
+                type="submit"
+                disabled={!apiKeyInput.trim()}
+                className="shrink-0 rounded-full bg-doa-pink-300 px-3 py-1.5 text-[11px] text-white disabled:opacity-40"
+              >
+                저장
+              </button>
+            </form>
+            {apiKey && (
+              <button
+                onClick={clearApiKey}
+                className="self-start text-[11px] text-doa-ink/50 underline hover:text-rose-500"
+              >
+                내 키 지우고 기본 키로 돌아가기
+              </button>
+            )}
+          </div>
+        )}
       </section>
       </aside>
     </>

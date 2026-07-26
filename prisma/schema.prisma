@@ -20,6 +20,7 @@ model AppUser {
 
   messages          Message[]
   todos             Todo[]
+  bucketItems       BucketItem[]
   routines          Routine[]
   schedules         Schedule[]
   pushSubscriptions PushSubscription[]
@@ -53,6 +54,18 @@ model Todo {
   lastDeadlineReminderSentAt DateTime?
   createdAt                  DateTime  @default(now())
   updatedAt                  DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model BucketItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  isDone    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId])
 }

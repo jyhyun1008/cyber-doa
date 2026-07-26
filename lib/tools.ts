@@ -58,6 +58,49 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
+      name: "add_bucket_item",
+      strict: true,
+      description:
+        "유저가 언젠가 해보고 싶다고 말한 일을 버킷리스트에 추가(할 일 목록과는 다름 — 마감이나 급한 일정이 없는 막연한 소망/하고 싶은 일).",
+      parameters: {
+        type: "object",
+        properties: { title: { type: "string" } },
+        required: ["title"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "complete_bucket_item",
+      strict: true,
+      description: "유저가 버킷리스트에 있던 걸 이미 해냈다고 말하면 완료 처리해서 목록에서 지움.",
+      parameters: {
+        type: "object",
+        properties: { title: { type: "string", description: "완료할 버킷리스트 항목 제목(위 버킷리스트 참고)" } },
+        required: ["title"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_bucket_item",
+      strict: true,
+      description: "유저가 더 이상 하고 싶지 않다고 하거나 취소한 버킷리스트 항목을 삭제.",
+      parameters: {
+        type: "object",
+        properties: { title: { type: "string", description: "삭제할 버킷리스트 항목 제목(위 버킷리스트 참고)" } },
+        required: ["title"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "add_routine",
       strict: true,
       description: "매일 또는 특정 요일에 반복되는 루틴을 등록.",
@@ -230,6 +273,9 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
 export const MEMORY_TOOL_NAMES = [
   "update_user_profile",
   "add_todo",
+  "add_bucket_item",
+  "complete_bucket_item",
+  "delete_bucket_item",
   "add_routine",
   "add_schedule",
   "complete_todo",
@@ -273,6 +319,36 @@ export async function executeMemoryTool(userId: string, name: string, args: Reco
       await prisma.todo.create({
         data: { userId, title, deadline: deadline && !isNaN(deadline.getTime()) ? deadline : null },
       });
+      return { ok: true };
+    }
+    case "add_bucket_item": {
+      const title = String(args.title ?? "").trim();
+      if (!title) return { ok: false, error: "title is required" };
+
+      const existing = await prisma.bucketItem.findMany({ where: { userId, isDone: false } });
+      if (existing.some((b) => sameTitle(b.title, title))) {
+        return { ok: true, skipped: "already exists" };
+      }
+
+      await prisma.bucketItem.create({ data: { userId, title } });
+      return { ok: true };
+    }
+    case "complete_bucket_item": {
+      const title = String(args.title ?? "").trim();
+      if (!title) return { ok: false, error: "title is required" };
+      const open = await prisma.bucketItem.findMany({ where: { userId, isDone: false } });
+      const match = findBestTitleMatch(open, title);
+      if (!match) return { ok: false, error: "matching bucket item not found" };
+      await prisma.bucketItem.updateMany({ where: { id: match.id, userId }, data: { isDone: true } });
+      return { ok: true };
+    }
+    case "delete_bucket_item": {
+      const title = String(args.title ?? "").trim();
+      if (!title) return { ok: false, error: "title is required" };
+      const open = await prisma.bucketItem.findMany({ where: { userId, isDone: false } });
+      const match = findBestTitleMatch(open, title);
+      if (!match) return { ok: false, error: "matching bucket item not found" };
+      await prisma.bucketItem.deleteMany({ where: { id: match.id, userId } });
       return { ok: true };
     }
     case "add_routine": {

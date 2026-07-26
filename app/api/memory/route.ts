@@ -6,9 +6,10 @@ export async function GET(request: NextRequest) {
   const userId = await requireUserId(request);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const [user, todos, routines, schedules] = await Promise.all([
+  const [user, todos, bucketItems, routines, schedules] = await Promise.all([
     prisma.appUser.findUnique({ where: { id: userId } }),
     prisma.todo.findMany({ where: { userId, isDone: false }, orderBy: { deadline: "asc" }, take: 10 }),
+    prisma.bucketItem.findMany({ where: { userId, isDone: false }, orderBy: { createdAt: "asc" }, take: 20 }),
     prisma.routine.findMany({ where: { userId }, take: 20, orderBy: { createdAt: "asc" } }),
     prisma.schedule.findMany({ where: { userId, isSent: false }, orderBy: { scheduledAt: "asc" }, take: 10 }),
   ]);
@@ -21,6 +22,7 @@ export async function GET(request: NextRequest) {
       title: t.title,
       deadline: t.deadline ? t.deadline.toISOString() : null,
     })),
+    bucketItems: bucketItems.map((b) => ({ id: b.id, title: b.title })),
     routines: routines.map((r) => ({
       id: r.id,
       title: r.title,

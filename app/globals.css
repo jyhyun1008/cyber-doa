@@ -19,6 +19,7 @@ body {
 }
 
 body {
+  font-size: 18px;
   background: linear-gradient(180deg, var(--color-doa-blue-100) 0%, var(--color-doa-cream) 40%);
   color: var(--color-doa-ink);
   font-family: var(--font-cute-body), sans-serif;

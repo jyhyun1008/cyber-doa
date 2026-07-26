@@ -10,6 +10,7 @@ export type MemorySnapshot = {
   username: string;
   profile: string;
   todos: { id: string; title: string; deadline: string | null }[];
+  bucketItems: { id: string; title: string }[];
   routines: { id: string; title: string; daysOfWeek: number[]; time: string; isActive: boolean }[];
   schedules: { id: string; title: string; scheduledAt: string }[];
 };
