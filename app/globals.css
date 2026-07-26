@@ -13,13 +13,18 @@
   --font-cute-body: var(--font-jua);
 }
 
+html {
+  /* bumps every rem-based Tailwind text size (text-xs, text-sm, ...) up by 2pt uniformly,
+     since they're all relative to this root size rather than body's */
+  font-size: calc(100% + 2pt);
+}
+
 html,
 body {
   height: 100%;
 }
 
 body {
-  font-size: 18px;
   background: linear-gradient(180deg, var(--color-doa-blue-100) 0%, var(--color-doa-cream) 40%);
   color: var(--color-doa-ink);
   font-family: var(--font-cute-body), sans-serif;
