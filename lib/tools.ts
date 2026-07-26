@@ -26,7 +26,7 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       name: "update_user_profile",
       strict: true,
       description:
-        "유저에 대해 새롭게 알게 되었거나 갱신할 정보가 있을 때 호출. 기존 프로필을 대체할 새로운 전체 텍스트(긴 줄글)를 전달.",
+        "유저의 성격, 취향, 좋아하는 것/기분 좋아지는 것, 요즘 관심사나 사는 모습처럼 '사람 자체'에 대해 새롭게 알게 된 게 있을 때 호출. 할 일/일정/루틴처럼 이미 별도로 저장되는 항목은 여기 넣지 마. 기존 프로필을 대체할 새로운 전체 텍스트(긴 줄글)를 전달.",
       parameters: {
         type: "object",
         properties: { profile: { type: "string" } },
