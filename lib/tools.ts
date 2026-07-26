@@ -147,6 +147,44 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
+      name: "update_routine",
+      strict: true,
+      description:
+        "이미 등록된 반복 루틴의 요일/시간/제목을 변경(예: '일요일 빼줘', '매일 하던 거 평일에만 하게 해줘', '시간 8시로 바꿔줘'). title로 기존 루틴을 찾아서 수정. 바꿀 값만 채우고 나머지는 null.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "변경할 기존 루틴의 제목(위 반복 루틴 참고)" },
+          newDaysOfWeek: {
+            type: ["array", "null"],
+            items: { type: "integer", minimum: 0, maximum: 6 },
+            description: "새 요일 배열(0=일..6=토). 안 바꾸면 null. 예: 일요일만 빼려면 매일 배열에서 0을 제외.",
+          },
+          newTime: { type: ["string", "null"], description: "새 시각 HH:mm. 안 바꾸면 null." },
+          newTitle: { type: ["string", "null"], description: "새 제목. 안 바꾸면 null." },
+        },
+        required: ["title", "newDaysOfWeek", "newTime", "newTitle"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_routine",
+      strict: true,
+      description: "유저가 그만하겠다고 하거나 취소한 반복 루틴을 삭제.",
+      parameters: {
+        type: "object",
+        properties: { title: { type: "string", description: "삭제할 루틴의 제목(위 반복 루틴 참고)" } },
+        required: ["title"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "send_reply",
       strict: true,
       description:
@@ -179,6 +217,8 @@ export const MEMORY_TOOL_NAMES = [
   "delete_todo",
   "update_schedule",
   "cancel_schedule",
+  "update_routine",
+  "delete_routine",
 ] as const;
 
 function sameTitle(a: string, b: string) {
@@ -301,6 +341,37 @@ export async function executeMemoryTool(name: string, args: Record<string, unkno
       const match = findBestTitleMatch(pending, title);
       if (!match) return { ok: false, error: "matching schedule not found" };
       await prisma.schedule.delete({ where: { id: match.id } });
+      return { ok: true };
+    }
+    case "update_routine": {
+      const title = String(args.title ?? "").trim();
+      if (!title) return { ok: false, error: "title is required" };
+      const routines = await prisma.routine.findMany();
+      const match = findBestTitleMatch(routines, title);
+      if (!match) return { ok: false, error: "matching routine not found" };
+
+      const data: { title?: string; time?: string; daysOfWeek?: string } = {};
+      if (args.newTitle) data.title = String(args.newTitle).trim();
+      if (args.newTime) {
+        const time = String(args.newTime).trim();
+        if (/^\d{2}:\d{2}$/.test(time)) data.time = time;
+      }
+      if (Array.isArray(args.newDaysOfWeek)) {
+        const days = (args.newDaysOfWeek as unknown[]).map((d) => Number(d)).filter((d) => d >= 0 && d <= 6);
+        if (days.length) data.daysOfWeek = JSON.stringify(days);
+      }
+      if (!Object.keys(data).length) return { ok: false, error: "nothing to update" };
+
+      await prisma.routine.update({ where: { id: match.id }, data });
+      return { ok: true };
+    }
+    case "delete_routine": {
+      const title = String(args.title ?? "").trim();
+      if (!title) return { ok: false, error: "title is required" };
+      const routines = await prisma.routine.findMany();
+      const match = findBestTitleMatch(routines, title);
+      if (!match) return { ok: false, error: "matching routine not found" };
+      await prisma.routine.delete({ where: { id: match.id } });
       return { ok: true };
     }
     default:
