@@ -1,11 +1,15 @@
 import { NextRequest } from "next/server";
 import { subscribeToChatEvents } from "@/lib/sse";
+import { requireUserId } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 const HEARTBEAT_MS = 25_000;
 
 export async function GET(request: NextRequest) {
+  const userId = await requireUserId(request);
+  if (!userId) return new Response("unauthorized", { status: 401 });
+
   const encoder = new TextEncoder();
 
   let unsubscribe: () => void = () => {};
@@ -23,7 +27,7 @@ export async function GET(request: NextRequest) {
 
       send(`retry: 3000\n\n`);
 
-      unsubscribe = subscribeToChatEvents((event) => {
+      unsubscribe = subscribeToChatEvents(userId, (event) => {
         send(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
       });
 

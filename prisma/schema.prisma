@@ -8,39 +8,59 @@ generator client {
 }
 
 model AppUser {
-  id                 Int       @id @default(1)
-  username           String?
-  passwordHash       String?
+  id                 String    @id @default(cuid())
+  username           String    @unique
+  passwordHash       String
+  isOwner            Boolean   @default(false)
   profile            String    @default("")
   lastSeenAt         DateTime?
   lastIdlePingSentAt DateTime?
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+
+  messages          Message[]
+  todos             Todo[]
+  routines          Routine[]
+  schedules         Schedule[]
+  pushSubscriptions PushSubscription[]
+}
+
+model AppSettings {
+  id            Int     @id @default(1)
+  signupEnabled Boolean @default(true)
 }
 
 model Message {
   id              String   @id @default(cuid())
+  userId          String
+  user            AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
   role            String
   content         String
   source          String   @default("chat")
   thinkingSeconds Int?
   createdAt       DateTime @default(now())
 
-  @@index([createdAt])
+  @@index([userId, createdAt])
 }
 
 model Todo {
   id                         String    @id @default(cuid())
+  userId                     String
+  user                       AppUser   @relation(fields: [userId], references: [id], onDelete: Cascade)
   title                      String
   deadline                   DateTime?
   isDone                     Boolean   @default(false)
   lastDeadlineReminderSentAt DateTime?
   createdAt                  DateTime  @default(now())
   updatedAt                  DateTime  @updatedAt
+
+  @@index([userId])
 }
 
 model Routine {
   id                String   @id @default(cuid())
+  userId            String
+  user              AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
   title             String
   daysOfWeek        String
   time              String
@@ -48,20 +68,30 @@ model Routine {
   lastTriggeredDate String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+
+  @@index([userId])
 }
 
 model Schedule {
   id          String   @id @default(cuid())
+  userId      String
+  user        AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
   title       String
   scheduledAt DateTime
   isSent      Boolean  @default(false)
   createdAt   DateTime @default(now())
+
+  @@index([userId])
 }
 
 model PushSubscription {
   id        String   @id @default(cuid())
+  userId    String
+  user      AppUser  @relation(fields: [userId], references: [id], onDelete: Cascade)
   endpoint  String   @unique
   p256dh    String
   auth      String
   createdAt DateTime @default(now())
+
+  @@index([userId])
 }

@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "message not found" }, { status: 404 });
   }
 
-  broadcastChatEvent({
+  broadcastChatEvent(message.userId, {
     type: "message:new",
     message: {
       id: message.id,

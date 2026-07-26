@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useMemoryPanel } from "@/hooks/useMemoryPanel";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
+import { useAppSettings } from "@/hooks/useAppSettings";
 import InstallPrompt from "./InstallPrompt";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -44,6 +45,7 @@ export default function Sidebar() {
   const router = useRouter();
   const { memory, refresh } = useMemoryPanel();
   const { permission, subscribed, subscribe, error: pushError } = usePushSubscription();
+  const { settings, toggleSignup } = useAppSettings();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   async function handleLogout() {
@@ -89,7 +91,9 @@ export default function Sidebar() {
         <h1 className="font-[family-name:var(--font-cute-heading)] text-2xl text-doa-pink-500">
           DOA
         </h1>
-        <p className="text-xs text-doa-ink/60">귀여운 메이드 챗봇</p>
+        <p className="text-xs text-doa-ink/60">
+          {memory?.username ? `${memory.username}님으로 로그인 중` : "귀여운 메이드 챗봇"}
+        </p>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -102,6 +106,14 @@ export default function Sidebar() {
           </button>
         )}
         <InstallPrompt />
+        {settings?.isOwner && (
+          <button
+            onClick={() => toggleSignup(!settings.signupEnabled)}
+            className="rounded-full bg-white/80 px-3 py-2 text-xs text-doa-ink/60 shadow-sm hover:bg-white"
+          >
+            {settings.signupEnabled ? "🔓 새 가입 허용 중" : "🔒 새 가입 막음"}
+          </button>
+        )}
         <button
           onClick={handleLogout}
           className="rounded-full bg-white/80 px-3 py-2 text-xs text-doa-ink/60 shadow-sm hover:bg-white"

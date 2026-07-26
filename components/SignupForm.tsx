@@ -33,7 +33,13 @@ export default function SignupForm() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-        setError(data?.error || "가입에 실패했어요...");
+        const message =
+          data?.error === "signup closed"
+            ? "지금은 새로운 가입을 받지 않고 있어요."
+            : data?.error === "username taken"
+              ? "이미 있는 아이디예요."
+              : data?.error || "가입에 실패했어요...";
+        setError(message);
         return;
       }
       router.replace("/");
@@ -52,7 +58,7 @@ export default function SignupForm() {
         DOA
       </h1>
       <p className="text-center text-sm text-doa-ink/70">
-        처음이시네요! 계정을 만들어주세요.
+        새 계정을 만들어주세요.
       </p>
       <input
         value={username}

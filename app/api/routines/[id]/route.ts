@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireUserId } from "@/lib/auth";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const userId = await requireUserId(request);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   const { id } = await params;
   const body = await request.json().catch(() => null);
   const isActive = typeof body?.isActive === "boolean" ? body.isActive : undefined;
@@ -10,12 +14,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ error: "isActive is required" }, { status: 400 });
   }
 
-  await prisma.routine.update({ where: { id }, data: { isActive } }).catch(() => null);
-  return NextResponse.json({ ok: true });
+  const result = await prisma.routine.updateMany({ where: { id, userId }, data: { isActive } });
+  return NextResponse.json({ ok: result.count > 0 });
 }
 
-export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const userId = await requireUserId(request);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   const { id } = await params;
-  await prisma.routine.delete({ where: { id } }).catch(() => null);
-  return NextResponse.json({ ok: true });
+  const result = await prisma.routine.deleteMany({ where: { id, userId } });
+  return NextResponse.json({ ok: result.count > 0 });
 }

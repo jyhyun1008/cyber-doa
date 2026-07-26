@@ -7,5 +7,7 @@ build/
 .env.local
 data/*.db
 data/*.db-journal
+data/*.db.backup-*
+scripts/migrate-to-multiuser/dump.json
 *.log
 .DS_Store

@@ -15,19 +15,20 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const existing = await prisma.appUser.findUnique({ where: { id: 1 } });
-  if (existing?.passwordHash) {
-    return NextResponse.json({ error: "account already set up" }, { status: 409 });
+  const settings = await prisma.appSettings.findUnique({ where: { id: 1 } });
+  if (settings && !settings.signupEnabled) {
+    return NextResponse.json({ error: "signup closed" }, { status: 403 });
+  }
+
+  const existing = await prisma.appUser.findUnique({ where: { username } });
+  if (existing) {
+    return NextResponse.json({ error: "username taken" }, { status: 409 });
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
-  await prisma.appUser.upsert({
-    where: { id: 1 },
-    update: { username, passwordHash },
-    create: { id: 1, username, passwordHash },
-  });
+  const user = await prisma.appUser.create({ data: { username, passwordHash } });
 
-  const token = await createSessionToken();
+  const token = await createSessionToken(user.id);
   const response = NextResponse.json({ ok: true });
   response.cookies.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,

@@ -4,8 +4,8 @@ import { triggerProactiveMessage } from "../send";
 
 const IDLE_THRESHOLD_MS = 24 * 60 * 60 * 1000;
 
-export async function checkIdle(now: Date) {
-  const user = await prisma.appUser.findUnique({ where: { id: 1 } });
+export async function checkIdle(userId: string, now: Date) {
+  const user = await prisma.appUser.findUnique({ where: { id: userId } });
   if (!user?.lastSeenAt) return;
 
   const idleFor = now.getTime() - user.lastSeenAt.getTime();
@@ -17,8 +17,9 @@ export async function checkIdle(now: Date) {
   }
 
   const text = await generateProactiveMessage(
+    userId,
     "유저가 만 하루 넘게 대화를 하지 않았어요. 심심하다는 듯 안부를 물어봐주세요."
   );
-  await triggerProactiveMessage(text);
-  await prisma.appUser.update({ where: { id: 1 }, data: { lastIdlePingSentAt: now } });
+  await triggerProactiveMessage(userId, text);
+  await prisma.appUser.update({ where: { id: userId }, data: { lastIdlePingSentAt: now } });
 }

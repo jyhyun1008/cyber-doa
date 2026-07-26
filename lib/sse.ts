@@ -23,13 +23,15 @@ if (process.env.NODE_ENV !== "production") {
   globalForEmitter.doaEmitter = chatEmitter;
 }
 
-const CHANNEL = "chat-event";
-
-export function broadcastChatEvent(event: ChatEvent) {
-  chatEmitter.emit(CHANNEL, event);
+function channelFor(userId: string) {
+  return `chat-event:${userId}`;
 }
 
-export function subscribeToChatEvents(listener: (event: ChatEvent) => void) {
-  chatEmitter.on(CHANNEL, listener);
-  return () => chatEmitter.off(CHANNEL, listener);
+export function broadcastChatEvent(userId: string, event: ChatEvent) {
+  chatEmitter.emit(channelFor(userId), event);
+}
+
+export function subscribeToChatEvents(userId: string, listener: (event: ChatEvent) => void) {
+  chatEmitter.on(channelFor(userId), listener);
+  return () => chatEmitter.off(channelFor(userId), listener);
 }

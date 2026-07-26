@@ -253,29 +253,25 @@ function findBestTitleMatch<T extends { title: string }>(items: T[], title: stri
   );
 }
 
-export async function executeMemoryTool(name: string, args: Record<string, unknown>) {
+export async function executeMemoryTool(userId: string, name: string, args: Record<string, unknown>) {
   switch (name) {
     case "update_user_profile": {
       const profile = String(args.profile ?? "");
-      await prisma.appUser.upsert({
-        where: { id: 1 },
-        update: { profile },
-        create: { id: 1, profile },
-      });
+      await prisma.appUser.update({ where: { id: userId }, data: { profile } });
       return { ok: true };
     }
     case "add_todo": {
       const title = String(args.title ?? "").trim();
       if (!title) return { ok: false, error: "title is required" };
 
-      const existing = await prisma.todo.findMany({ where: { isDone: false } });
+      const existing = await prisma.todo.findMany({ where: { userId, isDone: false } });
       if (existing.some((t) => sameTitle(t.title, title))) {
         return { ok: true, skipped: "already exists" };
       }
 
       const deadline = args.deadline ? new Date(String(args.deadline)) : null;
       await prisma.todo.create({
-        data: { title, deadline: deadline && !isNaN(deadline.getTime()) ? deadline : null },
+        data: { userId, title, deadline: deadline && !isNaN(deadline.getTime()) ? deadline : null },
       });
       return { ok: true };
     }
@@ -287,13 +283,13 @@ export async function executeMemoryTool(name: string, args: Record<string, unkno
         return { ok: false, error: "invalid routine arguments" };
       }
 
-      const existing = await prisma.routine.findMany();
+      const existing = await prisma.routine.findMany({ where: { userId } });
       if (existing.some((r) => sameTitle(r.title, title))) {
         return { ok: true, skipped: "already exists" };
       }
 
       await prisma.routine.create({
-        data: { title, daysOfWeek: JSON.stringify(daysOfWeek), time },
+        data: { userId, title, daysOfWeek: JSON.stringify(daysOfWeek), time },
       });
       return { ok: true };
     }
@@ -304,7 +300,7 @@ export async function executeMemoryTool(name: string, args: Record<string, unkno
         return { ok: false, error: "invalid schedule arguments" };
       }
 
-      const existing = await prisma.schedule.findMany({ where: { isSent: false } });
+      const existing = await prisma.schedule.findMany({ where: { userId, isSent: false } });
       const isDuplicate = existing.some(
         (s) => sameTitle(s.title, title) && Math.abs(s.scheduledAt.getTime() - scheduledAt.getTime()) < 5 * 60_000
       );
@@ -312,31 +308,31 @@ export async function executeMemoryTool(name: string, args: Record<string, unkno
         return { ok: true, skipped: "already exists" };
       }
 
-      await prisma.schedule.create({ data: { title, scheduledAt } });
+      await prisma.schedule.create({ data: { userId, title, scheduledAt } });
       return { ok: true };
     }
     case "complete_todo": {
       const title = String(args.title ?? "").trim();
       if (!title) return { ok: false, error: "title is required" };
-      const open = await prisma.todo.findMany({ where: { isDone: false } });
+      const open = await prisma.todo.findMany({ where: { userId, isDone: false } });
       const match = findBestTitleMatch(open, title);
       if (!match) return { ok: false, error: "matching todo not found" };
-      await prisma.todo.update({ where: { id: match.id }, data: { isDone: true } });
+      await prisma.todo.updateMany({ where: { id: match.id, userId }, data: { isDone: true } });
       return { ok: true };
     }
     case "delete_todo": {
       const title = String(args.title ?? "").trim();
       if (!title) return { ok: false, error: "title is required" };
-      const open = await prisma.todo.findMany({ where: { isDone: false } });
+      const open = await prisma.todo.findMany({ where: { userId, isDone: false } });
       const match = findBestTitleMatch(open, title);
       if (!match) return { ok: false, error: "matching todo not found" };
-      await prisma.todo.delete({ where: { id: match.id } });
+      await prisma.todo.deleteMany({ where: { id: match.id, userId } });
       return { ok: true };
     }
     case "update_schedule": {
       const title = String(args.title ?? "").trim();
       if (!title) return { ok: false, error: "title is required" };
-      const pending = await prisma.schedule.findMany({ where: { isSent: false } });
+      const pending = await prisma.schedule.findMany({ where: { userId, isSent: false } });
       const match = findBestTitleMatch(pending, title);
       if (!match) return { ok: false, error: "matching schedule not found" };
 
@@ -348,22 +344,22 @@ export async function executeMemoryTool(name: string, args: Record<string, unkno
       }
       if (!Object.keys(data).length) return { ok: false, error: "nothing to update" };
 
-      await prisma.schedule.update({ where: { id: match.id }, data });
+      await prisma.schedule.updateMany({ where: { id: match.id, userId }, data });
       return { ok: true };
     }
     case "cancel_schedule": {
       const title = String(args.title ?? "").trim();
       if (!title) return { ok: false, error: "title is required" };
-      const pending = await prisma.schedule.findMany({ where: { isSent: false } });
+      const pending = await prisma.schedule.findMany({ where: { userId, isSent: false } });
       const match = findBestTitleMatch(pending, title);
       if (!match) return { ok: false, error: "matching schedule not found" };
-      await prisma.schedule.delete({ where: { id: match.id } });
+      await prisma.schedule.deleteMany({ where: { id: match.id, userId } });
       return { ok: true };
     }
     case "update_routine": {
       const title = String(args.title ?? "").trim();
       if (!title) return { ok: false, error: "title is required" };
-      const routines = await prisma.routine.findMany();
+      const routines = await prisma.routine.findMany({ where: { userId } });
       const match = findBestTitleMatch(routines, title);
       if (!match) return { ok: false, error: "matching routine not found" };
 
@@ -379,16 +375,16 @@ export async function executeMemoryTool(name: string, args: Record<string, unkno
       }
       if (!Object.keys(data).length) return { ok: false, error: "nothing to update" };
 
-      await prisma.routine.update({ where: { id: match.id }, data });
+      await prisma.routine.updateMany({ where: { id: match.id, userId }, data });
       return { ok: true };
     }
     case "delete_routine": {
       const title = String(args.title ?? "").trim();
       if (!title) return { ok: false, error: "title is required" };
-      const routines = await prisma.routine.findMany();
+      const routines = await prisma.routine.findMany({ where: { userId } });
       const match = findBestTitleMatch(routines, title);
       if (!match) return { ok: false, error: "matching routine not found" };
-      await prisma.routine.delete({ where: { id: match.id } });
+      await prisma.routine.deleteMany({ where: { id: match.id, userId } });
       return { ok: true };
     }
     default:

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireUserId } from "@/lib/auth";
 import { broadcastChatEvent } from "@/lib/sse";
 import { generateAssistantReply } from "@/lib/llmReply";
 import { resolveThinkingDelaySeconds, sleep } from "@/lib/delay";
@@ -7,11 +8,15 @@ import { resolveThinkingDelaySeconds, sleep } from "@/lib/delay";
 const HISTORY_LIMIT_FOR_LLM = 20;
 
 export async function GET(request: NextRequest) {
+  const userId = await requireUserId(request);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   const { searchParams } = new URL(request.url);
   const limit = Math.min(Number(searchParams.get("limit")) || 50, 200);
   const cursor = searchParams.get("cursor");
 
   const messages = await prisma.message.findMany({
+    where: { userId },
     take: limit,
     orderBy: { createdAt: "desc" },
     ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
@@ -21,6 +26,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const userId = await requireUserId(request);
+  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
   const body = await request.json().catch(() => null);
   const text = typeof body?.text === "string" ? body.text.trim() : "";
   if (!text) {
@@ -28,27 +36,27 @@ export async function POST(request: NextRequest) {
   }
 
   const userMessage = await prisma.message.create({
-    data: { role: "user", content: text, source: "chat" },
+    data: { userId, role: "user", content: text, source: "chat" },
   });
 
-  await prisma.appUser.upsert({
-    where: { id: 1 },
-    update: { lastSeenAt: new Date() },
-    create: { id: 1, lastSeenAt: new Date() },
+  await prisma.appUser.update({
+    where: { id: userId },
+    data: { lastSeenAt: new Date() },
   });
 
-  handleReply().catch((err) => {
+  handleReply(userId).catch((err) => {
     console.error("[chat] reply pipeline failed", err);
-    broadcastChatEvent({ type: "typing:stop" });
+    broadcastChatEvent(userId, { type: "typing:stop" });
   });
 
   return NextResponse.json({ userMessageId: userMessage.id });
 }
 
-async function handleReply() {
-  broadcastChatEvent({ type: "typing:start" });
+async function handleReply(userId: string) {
+  broadcastChatEvent(userId, { type: "typing:start" });
 
   const recent = await prisma.message.findMany({
+    where: { userId },
     orderBy: { createdAt: "desc" },
     take: HISTORY_LIMIT_FOR_LLM,
   });
@@ -56,12 +64,13 @@ async function handleReply() {
     .reverse()
     .map((m) => ({ role: m.role as "user" | "assistant", content: m.content, createdAt: m.createdAt }));
 
-  const { reply, thinking_seconds } = await generateAssistantReply(history);
+  const { reply, thinking_seconds } = await generateAssistantReply(userId, history);
   const delaySeconds = resolveThinkingDelaySeconds(reply, thinking_seconds);
   await sleep(delaySeconds * 1000);
 
   const assistantMessage = await prisma.message.create({
     data: {
+      userId,
       role: "assistant",
       content: reply,
       source: "chat",
@@ -69,7 +78,7 @@ async function handleReply() {
     },
   });
 
-  broadcastChatEvent({
+  broadcastChatEvent(userId, {
     type: "message:new",
     message: {
       id: assistantMessage.id,

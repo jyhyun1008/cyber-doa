@@ -19,14 +19,14 @@ export type PushPayload = {
   url?: string;
 };
 
-export async function sendWebPushToAll(payload: PushPayload) {
+export async function sendWebPushToUser(userId: string, payload: PushPayload) {
   ensureConfigured();
   if (!configured) {
     console.warn("[push] VAPID keys not configured, skipping web push send");
     return;
   }
 
-  const subscriptions = await prisma.pushSubscription.findMany();
+  const subscriptions = await prisma.pushSubscription.findMany({ where: { userId } });
   const json = JSON.stringify(payload);
 
   await Promise.all(

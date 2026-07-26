@@ -1,12 +1,12 @@
 import { prisma } from "../lib/db";
-import { sendWebPushToAll } from "../lib/push";
+import { sendWebPushToUser } from "../lib/push";
 
-export async function triggerProactiveMessage(text: string) {
+export async function triggerProactiveMessage(userId: string, text: string) {
   const message = await prisma.message.create({
-    data: { role: "assistant", content: text, source: "proactive" },
+    data: { userId, role: "assistant", content: text, source: "proactive" },
   });
 
-  await sendWebPushToAll({ title: "DOA", body: text, url: "/" }).catch((err) => {
+  await sendWebPushToUser(userId, { title: "DOA", body: text, url: "/" }).catch((err: unknown) => {
     console.error("[scheduler] web push failed", err);
   });
 
@@ -18,10 +18,10 @@ export async function triggerProactiveMessage(text: string) {
       "x-internal-secret": process.env.INTERNAL_API_SECRET || "",
     },
     body: JSON.stringify({ messageId: message.id }),
-  }).catch((err) => {
+  }).catch((err: unknown) => {
     console.error("[scheduler] internal broadcast failed", err);
   });
 
-  console.log(`[scheduler] proactive message sent: ${text}`);
+  console.log(`[scheduler] proactive message sent to ${userId}: ${text}`);
   return message;
 }

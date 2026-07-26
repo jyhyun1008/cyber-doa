@@ -1,17 +1,16 @@
 import { prisma } from "@/lib/db";
-import LoginForm from "@/components/LoginForm";
-import SignupForm from "@/components/SignupForm";
+import LoginPageClient from "@/components/LoginPageClient";
 
-// account setup state changes at runtime (signup happens post-build), so this must not be prerendered
+// signup-enabled state can change at runtime, so this must not be prerendered
 export const dynamic = "force-dynamic";
 
 export default async function LoginPage() {
-  const account = await prisma.appUser.findUnique({ where: { id: 1 } });
-  const isSetup = Boolean(account?.passwordHash);
+  const settings = await prisma.appSettings.findUnique({ where: { id: 1 } });
+  const signupEnabled = settings?.signupEnabled ?? true;
 
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
-      {isSetup ? <LoginForm /> : <SignupForm />}
+      <LoginPageClient signupEnabled={signupEnabled} />
     </main>
   );
 }

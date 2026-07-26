@@ -13,11 +13,3 @@ export const prisma = globalForPrisma.prisma ?? createPrismaClient();
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
-
-export async function getOrCreateAppUser() {
-  return prisma.appUser.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { id: 1 },
-  });
-}
