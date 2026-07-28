@@ -23,10 +23,25 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
+      name: "add_profile_note",
+      strict: true,
+      description:
+        "유저의 성격, 취향, 좋아하는 것/기분 좋아지는 것, 요즘 관심사나 사는 모습처럼 '사람 자체'에 대해 새롭게 알게 된 사실 하나를 짧게 한두 문장으로 전달(자동으로 기존 메모 뒤에 이어붙여지니 기존 내용을 다시 안 써도 됨). 유저가 부탁하지 않았어도 잡담 중 이런 단서가 나오면 이걸로 기억해. 할 일/일정/루틴처럼 이미 별도로 저장되는 항목은 여기 넣지 마.",
+      parameters: {
+        type: "object",
+        properties: { note: { type: "string", description: "새로 알게 된 사실 한두 문장" } },
+        required: ["note"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "update_user_profile",
       strict: true,
       description:
-        "유저의 성격, 취향, 좋아하는 것/기분 좋아지는 것, 요즘 관심사나 사는 모습처럼 '사람 자체'에 대해 새롭게 알게 된 게 있을 때 호출. 할 일/일정/루틴처럼 이미 별도로 저장되는 항목은 여기 넣지 마. 기존 프로필을 대체할 새로운 전체 텍스트(긴 줄글)를 전달.",
+        "유저가 '프로필 정리해줘'처럼 명시적으로 정리/재구성을 요청했을 때만 호출. 기존 프로필 전체를 대체할 새로운 전체 텍스트(긴 줄글)를 전달 — 여전히 의미 있는 기존 내용은 빠짐없이 반영하고, 정말 의미 없어진 것만 자연스럽게 정리해서 빼.",
       parameters: {
         type: "object",
         properties: { profile: { type: "string" } },
@@ -271,6 +286,7 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
 ];
 
 export const MEMORY_TOOL_NAMES = [
+  "add_profile_note",
   "update_user_profile",
   "add_todo",
   "add_bucket_item",
@@ -301,6 +317,15 @@ function findBestTitleMatch<T extends { title: string }>(items: T[], title: stri
 
 export async function executeMemoryTool(userId: string, name: string, args: Record<string, unknown>) {
   switch (name) {
+    case "add_profile_note": {
+      const note = String(args.note ?? "").trim();
+      if (!note) return { ok: false, error: "note is required" };
+      const user = await prisma.appUser.findUnique({ where: { id: userId }, select: { profile: true } });
+      const existing = (user?.profile ?? "").trim();
+      const profile = existing ? `${existing} ${note}` : note;
+      await prisma.appUser.update({ where: { id: userId }, data: { profile } });
+      return { ok: true };
+    }
     case "update_user_profile": {
       const profile = String(args.profile ?? "");
       await prisma.appUser.update({ where: { id: userId }, data: { profile } });
