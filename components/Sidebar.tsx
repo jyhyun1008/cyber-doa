@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemoryPanel } from "@/hooks/useMemoryPanel";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { useAppSettings } from "@/hooks/useAppSettings";
@@ -103,6 +103,8 @@ export default function Sidebar({
   onClose?: () => void;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const isCalendarPage = pathname === "/calendar";
   const { memory, refresh } = useMemoryPanel();
   const { permission, subscribed, subscribe, error: pushError } = usePushSubscription();
   const { settings, toggleSignup } = useAppSettings();
@@ -189,10 +191,10 @@ export default function Sidebar({
 
         <div className="flex flex-col gap-2">
           <Link
-            href="/calendar"
+            href={isCalendarPage ? "/" : "/calendar"}
             className="rounded-full bg-white/80 px-3 py-2 text-center text-xs text-doa-pink-500 shadow-sm hover:bg-white"
           >
-            📅 캘린더 보기
+            {isCalendarPage ? "💬 채팅 보기" : "📅 캘린더 보기"}
           </Link>
           {permission !== "unsupported" && !subscribed && (
             <button

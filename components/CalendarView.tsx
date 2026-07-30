@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import type { CalendarItem } from "@/types";
 import { getWeekday, kstDateTimeToUTC, getDateKey } from "@/lib/time";
+import { useMobileMenu } from "@/contexts/MobileMenuContext";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
@@ -17,7 +18,8 @@ function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
-export default function CalendarView({ onOpenMenu }: { onOpenMenu: () => void }) {
+export default function CalendarView() {
+  const { openMenu } = useMobileMenu();
   const today = useMemo(() => new Date(), []);
   const todayKey = getDateKey(today);
   const [viewYear, setViewYear] = useState(Number(todayKey.slice(0, 4)));
@@ -109,7 +111,7 @@ export default function CalendarView({ onOpenMenu }: { onOpenMenu: () => void })
             오늘
           </button>
           <button
-            onClick={onOpenMenu}
+            onClick={openMenu}
             aria-label="메뉴 열기"
             className="rounded-full bg-white/80 p-2 text-doa-pink-500 shadow-sm lg:hidden"
           >

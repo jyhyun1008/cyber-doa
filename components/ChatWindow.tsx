@@ -3,12 +3,14 @@
 import { useEffect, useRef } from "react";
 import Image from "next/image";
 import { useChatStream } from "@/hooks/useChatStream";
+import { useMobileMenu } from "@/contexts/MobileMenuContext";
 import MessageBubble from "./MessageBubble";
 import TypingIndicator from "./TypingIndicator";
 import ChatInput from "./ChatInput";
 
-export default function ChatWindow({ onOpenMenu }: { onOpenMenu: () => void }) {
+export default function ChatWindow() {
   const { messages, isTyping, loading, sendMessage } = useChatStream();
+  const { openMenu } = useMobileMenu();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,7 +36,7 @@ export default function ChatWindow({ onOpenMenu }: { onOpenMenu: () => void }) {
           DOA와의 대화
         </span>
         <button
-          onClick={onOpenMenu}
+          onClick={openMenu}
           aria-label="메뉴 열기"
           className="rounded-full bg-white/80 p-2 text-doa-pink-500 shadow-sm lg:hidden"
         >
