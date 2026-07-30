@@ -42,6 +42,19 @@ export async function POST(request: NextRequest) {
     data: { userId, role: "user", content: text, source: "chat" },
   });
 
+  // broadcast so any OTHER open tab/device on this account sees this message too — the sending
+  // device already has it optimistically via sendMessage(), and dedupes by id when this echoes back
+  broadcastChatEvent(userId, {
+    type: "message:new",
+    message: {
+      id: userMessage.id,
+      role: userMessage.role,
+      content: userMessage.content,
+      source: userMessage.source,
+      createdAt: userMessage.createdAt.toISOString(),
+    },
+  });
+
   await prisma.appUser.update({
     where: { id: userId },
     data: { lastSeenAt: new Date() },

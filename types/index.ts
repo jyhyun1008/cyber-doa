@@ -19,3 +19,10 @@ export type AppSettings = {
   signupEnabled: boolean;
   isOwner: boolean;
 };
+
+export type CalendarItem = {
+  date: string;
+  type: "routine" | "schedule" | "todo";
+  title: string;
+  time: string | null;
+};

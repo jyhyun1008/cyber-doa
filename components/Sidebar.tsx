@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemoryPanel } from "@/hooks/useMemoryPanel";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
@@ -161,6 +162,12 @@ export default function Sidebar({
       </div>
 
       <div className="flex flex-col gap-2">
+        <Link
+          href="/calendar"
+          className="rounded-full bg-white/80 px-3 py-2 text-center text-xs text-doa-pink-500 shadow-sm hover:bg-white"
+        >
+          📅 캘린더 보기
+        </Link>
         {permission !== "unsupported" && !subscribed && (
           <button
             onClick={subscribe}
