@@ -531,11 +531,17 @@ export default function Sidebar({
         <CollapsibleSection title="내 OpenAI API 키" defaultOpen={false}>
           <div className="flex flex-col gap-1.5 rounded-2xl bg-white/70 p-3">
             <p className="text-[11px] leading-relaxed text-doa-ink/60">
-              내 키를 넣으면 채팅은 내 키로 동작해요(이 브라우저에만 저장, 서버에 저장 안 됨). 선톡은 항상 기본 키로
-              보내져요.
+              {settings?.isOwner
+                ? "내 키를 넣으면 채팅은 내 키로 동작해요(이 브라우저에만 저장, 서버에 저장 안 됨)."
+                : "채팅하려면 내 키가 필요해요(이 브라우저에만 저장, 서버에 저장 안 됨)."}{" "}
+              선톡은 항상 기본 키로 보내져요.
             </p>
             <p className="text-[11px] font-bold text-doa-ink/70">
-              {apiKey ? "현재: 내 API 키 사용 중" : "현재: 기본(공유) 키 사용 중"}
+              {apiKey
+                ? "현재: 내 API 키 사용 중"
+                : settings?.isOwner
+                  ? "현재: 기본(공유) 키 사용 중"
+                  : "현재: 키 없음 — 채팅 불가"}
             </p>
             <form onSubmit={handleSaveApiKey} className="flex gap-1">
               <input

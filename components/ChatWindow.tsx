@@ -4,6 +4,8 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import Image from "next/image";
 import { useChatStream } from "@/hooks/useChatStream";
 import { useMobileMenu } from "@/contexts/MobileMenuContext";
+import { useAppSettings } from "@/hooks/useAppSettings";
+import { useOpenAIKey } from "@/hooks/useOpenAIKey";
 import MessageBubble from "./MessageBubble";
 import TypingIndicator from "./TypingIndicator";
 import ChatInput from "./ChatInput";
@@ -12,6 +14,9 @@ export default function ChatWindow() {
   const { messages, isTyping, loading, sendMessage, loadMore, hasMore, loadingMore, confirmMessage } =
     useChatStream();
   const { openMenu } = useMobileMenu();
+  const { settings } = useAppSettings();
+  const { apiKey } = useOpenAIKey();
+  const needsApiKey = settings != null && !settings.isOwner && !apiKey;
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const prevScrollHeight = useRef<number | null>(null);
@@ -93,7 +98,13 @@ export default function ChatWindow() {
         <div ref={bottomRef} />
       </div>
 
-      <ChatInput onSend={sendMessage} />
+      {needsApiKey ? (
+        <div className="mx-3 mb-3 rounded-2xl bg-doa-pink-100/70 px-4 py-3 text-center text-xs text-doa-ink/70">
+          채팅하려면 사이드바에서 내 OpenAI API 키를 먼저 입력해주세요.
+        </div>
+      ) : (
+        <ChatInput onSend={sendMessage} />
+      )}
     </div>
   );
 }

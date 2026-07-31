@@ -38,6 +38,14 @@ export async function POST(request: NextRequest) {
   // optional bring-your-own-key: sent per-request from the browser (localStorage), never persisted
   const apiKey = request.headers.get("x-openai-key");
 
+  // the owner keeps using the shared server key by default; everyone else must bring their own
+  if (!apiKey) {
+    const user = await prisma.appUser.findUnique({ where: { id: userId }, select: { isOwner: true } });
+    if (!user?.isOwner) {
+      return NextResponse.json({ error: "api_key_required" }, { status: 400 });
+    }
+  }
+
   const userMessage = await prisma.message.create({
     data: { userId, role: "user", content: text, source: "chat" },
   });
