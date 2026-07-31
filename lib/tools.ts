@@ -170,6 +170,38 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: "function",
     function: {
+      name: "update_todo",
+      strict: true,
+      description:
+        "이미 등록된 할 일의 제목이나 마감일을 변경. title로 기존 할 일을 찾아서 수정. newTitle/newDeadline 중 바꿀 값만 채우고 나머지는 null. 마감일을 아예 없애고 싶으면 clearDeadline을 true로.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "변경할 기존 할 일의 제목(위 할 일 목록 참고)" },
+          newTitle: { type: ["string", "null"], description: "새 제목. 안 바꾸면 null." },
+          newDeadline: {
+            type: ["string", "null"],
+            description:
+              "새 마감일, ISO 8601 +09:00(KST) 오프셋 포함. 안 바꾸면 null. clearDeadline이 true면 무시됨.",
+          },
+          newHasTime: {
+            type: "boolean",
+            description:
+              "newDeadline을 바꾸는 경우, 유저가 구체적인 시각까지 말했으면 true, 날짜만 말했으면 false. newDeadline이 null이거나 clearDeadline이 true면 무시됨.",
+          },
+          clearDeadline: {
+            type: "boolean",
+            description: "마감일을 아예 없애고(무기한으로) 싶으면 true. 그 외에는 false.",
+          },
+        },
+        required: ["title", "newTitle", "newDeadline", "newHasTime", "clearDeadline"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "complete_todo",
       strict: true,
       description: "유저가 이미 끝냈다고 말한 할 일을 완료 처리해서 목록에서 지움. title로 기존 할 일을 찾아서 처리.",
@@ -310,6 +342,7 @@ export const MEMORY_TOOL_NAMES = [
   "delete_bucket_item",
   "add_routine",
   "add_schedule",
+  "update_todo",
   "complete_todo",
   "delete_todo",
   "update_schedule",
@@ -431,6 +464,26 @@ export async function executeMemoryTool(userId: string, name: string, args: Reco
       }
 
       await prisma.schedule.create({ data: { userId, title, scheduledAt } });
+      return { ok: true };
+    }
+    case "update_todo": {
+      const title = String(args.title ?? "").trim();
+      if (!title) return { ok: false, error: "title is required" };
+      const open = await prisma.todo.findMany({ where: { userId, isDone: false } });
+      const match = findBestTitleMatch(open, title);
+      if (!match) return { ok: false, error: "matching todo not found" };
+
+      const data: { title?: string; deadline?: Date | null } = {};
+      if (args.newTitle) data.title = String(args.newTitle).trim();
+      if (args.clearDeadline) {
+        data.deadline = null;
+      } else if (args.newDeadline) {
+        const newDate = new Date(String(args.newDeadline));
+        if (!isNaN(newDate.getTime())) data.deadline = applyDateOnlySentinel(newDate, Boolean(args.newHasTime));
+      }
+      if (!Object.keys(data).length) return { ok: false, error: "nothing to update" };
+
+      await prisma.todo.updateMany({ where: { id: match.id, userId }, data });
       return { ok: true };
     }
     case "complete_todo": {
