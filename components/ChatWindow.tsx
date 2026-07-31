@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import Image from "next/image";
 import { useChatStream } from "@/hooks/useChatStream";
 import { useMobileMenu } from "@/contexts/MobileMenuContext";
@@ -9,13 +9,30 @@ import TypingIndicator from "./TypingIndicator";
 import ChatInput from "./ChatInput";
 
 export default function ChatWindow() {
-  const { messages, isTyping, loading, sendMessage } = useChatStream();
+  const { messages, isTyping, loading, sendMessage, loadMore, hasMore, loadingMore } = useChatStream();
   const { openMenu } = useMobileMenu();
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const prevScrollHeight = useRef<number | null>(null);
 
   useEffect(() => {
+    if (prevScrollHeight.current !== null) return; // an older-messages load is about to run its own scroll fixup
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
+
+  // keep the viewport anchored on the same message after older ones are prepended, instead of
+  // jumping to the top (the natural result of content being inserted above the scroll position)
+  useLayoutEffect(() => {
+    if (prevScrollHeight.current === null || !scrollRef.current) return;
+    const el = scrollRef.current;
+    el.scrollTop += el.scrollHeight - prevScrollHeight.current;
+    prevScrollHeight.current = null;
+  }, [messages]);
+
+  function handleLoadMore() {
+    if (scrollRef.current) prevScrollHeight.current = scrollRef.current.scrollHeight;
+    loadMore();
+  }
 
   return (
     <div className="mx-auto flex h-dvh w-full max-w-2xl flex-col lg:h-full lg:rounded-3xl lg:bg-white/60 lg:shadow-lg lg:shadow-doa-pink-100 lg:backdrop-blur">
@@ -46,7 +63,7 @@ export default function ChatWindow() {
         </button>
       </header>
 
-      <div className="scrollbar-cute flex-1 space-y-3 overflow-y-auto px-4 py-4">
+      <div ref={scrollRef} className="scrollbar-cute flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {loading ? (
           <p className="text-center text-sm text-doa-ink/50">불러오는 중...</p>
         ) : messages.length === 0 ? (
@@ -54,7 +71,20 @@ export default function ChatWindow() {
             DOA에게 첫 인사를 건네보세요!
           </p>
         ) : (
-          messages.map((m) => <MessageBubble key={m.id} message={m} />)
+          <>
+            {hasMore && (
+              <div className="flex justify-center pb-1">
+                <button
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="rounded-full bg-white/80 px-3 py-1.5 text-xs text-doa-pink-500 shadow-sm hover:bg-white disabled:opacity-50"
+                >
+                  {loadingMore ? "불러오는 중..." : "이전 대화 불러오기"}
+                </button>
+              </div>
+            )}
+            {messages.map((m) => <MessageBubble key={m.id} message={m} />)}
+          </>
         )}
         {isTyping && <TypingIndicator />}
         <div ref={bottomRef} />

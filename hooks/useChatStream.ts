@@ -4,10 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "@/types";
 import { getStoredOpenAIKey } from "./useOpenAIKey";
 
+const PAGE_SIZE = 50;
+
 export function useChatStream() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const knownIds = useRef<Set<string>>(new Set());
 
   const addMessage = useCallback((message: ChatMessage) => {
@@ -19,7 +23,7 @@ export function useChatStream() {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const res = await fetch("/api/chat?limit=50");
+      const res = await fetch(`/api/chat?limit=${PAGE_SIZE}`);
       if (!res.ok || cancelled) return;
       const data = await res.json();
       for (const m of data.messages as ChatMessage[]) {
@@ -27,6 +31,7 @@ export function useChatStream() {
       }
       if (!cancelled) {
         setMessages(data.messages);
+        setHasMore(data.messages.length === PAGE_SIZE);
         setLoading(false);
       }
     })();
@@ -34,6 +39,25 @@ export function useChatStream() {
       cancelled = true;
     };
   }, []);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore || messages.length === 0) return;
+    const oldest = messages[0];
+    setLoadingMore(true);
+    const res = await fetch(`/api/chat?limit=${PAGE_SIZE}&cursor=${oldest.id}`);
+    if (!res.ok) {
+      setLoadingMore(false);
+      return;
+    }
+    const data = await res.json();
+    const older = (data.messages as ChatMessage[]).filter((m) => !knownIds.current.has(m.id));
+    for (const m of older) knownIds.current.add(m.id);
+    setHasMore(data.messages.length === PAGE_SIZE);
+    if (older.length > 0) {
+      setMessages((prev) => [...older, ...prev]);
+    }
+    setLoadingMore(false);
+  }, [loadingMore, hasMore, messages]);
 
   useEffect(() => {
     const source = new EventSource("/api/chat/stream");
@@ -75,5 +99,5 @@ export function useChatStream() {
     [addMessage]
   );
 
-  return { messages, isTyping, loading, sendMessage };
+  return { messages, isTyping, loading, sendMessage, loadMore, hasMore, loadingMore };
 }
