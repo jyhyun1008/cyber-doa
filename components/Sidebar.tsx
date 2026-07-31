@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -8,6 +8,7 @@ import { useMemoryPanel } from "@/hooks/useMemoryPanel";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useOpenAIKey } from "@/hooks/useOpenAIKey";
+import { getWeekday } from "@/lib/time";
 import InstallPrompt from "./InstallPrompt";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -106,6 +107,16 @@ export default function Sidebar({
   const pathname = usePathname();
   const isCalendarPage = pathname === "/calendar";
   const { memory, refresh } = useMemoryPanel();
+  const todayWeekday = getWeekday();
+  const sortedRoutines = useMemo(() => {
+    if (!memory) return [];
+    return [...memory.routines].sort((a, b) => {
+      const aToday = a.daysOfWeek.includes(todayWeekday);
+      const bToday = b.daysOfWeek.includes(todayWeekday);
+      if (aToday !== bToday) return aToday ? -1 : 1;
+      return a.time.localeCompare(b.time);
+    });
+  }, [memory, todayWeekday]);
   const { permission, subscribed, subscribe, error: pushError } = usePushSubscription();
   const { settings, toggleSignup } = useAppSettings();
   const { apiKey, setApiKey, clearApiKey } = useOpenAIKey();
@@ -273,12 +284,12 @@ export default function Sidebar({
             <p className="text-xs text-doa-ink/50">등록된 루틴이 없어요.</p>
           )}
           <ul className={LIST_SCROLL_CLASSES}>
-            {memory?.routines.map((routine) => (
+            {sortedRoutines.map((routine) => (
               <li
                 key={routine.id}
-                className={`flex items-center justify-between gap-1 rounded-xl bg-white/70 px-3 py-1.5 text-xs ${
-                  routine.completedToday ? "text-doa-ink/40" : "text-doa-ink/80"
-                }`}
+                className={`flex items-center justify-between gap-1 rounded-xl px-3 py-1.5 text-xs ${
+                  routine.daysOfWeek.includes(todayWeekday) ? "bg-doa-pink-100/70" : "bg-white/70"
+                } ${routine.completedToday ? "text-doa-ink/40" : "text-doa-ink/80"}`}
               >
                 <span className={`min-w-0 truncate ${routine.completedToday ? "line-through" : ""}`}>
                   {routine.title}
