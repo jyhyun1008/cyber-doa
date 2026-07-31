@@ -10,8 +10,8 @@ export type ChatMessage = {
 export type MemorySnapshot = {
   username: string;
   profile: string;
-  todos: { id: string; title: string; deadline: string | null }[];
-  bucketItems: { id: string; title: string }[];
+  todos: { id: string; title: string; deadline: string | null; isDone: boolean }[];
+  bucketItems: { id: string; title: string; isDone: boolean }[];
   routines: {
     id: string;
     title: string;

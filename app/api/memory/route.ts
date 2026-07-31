@@ -9,8 +9,16 @@ export async function GET(request: NextRequest) {
 
   const [user, todos, bucketItems, routines, schedules] = await Promise.all([
     prisma.appUser.findUnique({ where: { id: userId } }),
-    prisma.todo.findMany({ where: { userId, isDone: false }, orderBy: { deadline: "asc" }, take: 10 }),
-    prisma.bucketItem.findMany({ where: { userId, isDone: false }, orderBy: { createdAt: "asc" }, take: 20 }),
+    prisma.todo.findMany({
+      where: { userId },
+      orderBy: [{ isDone: "asc" }, { deadline: "asc" }],
+      take: 10,
+    }),
+    prisma.bucketItem.findMany({
+      where: { userId },
+      orderBy: [{ isDone: "asc" }, { createdAt: "asc" }],
+      take: 20,
+    }),
     prisma.routine.findMany({ where: { userId }, take: 20, orderBy: { createdAt: "asc" } }),
     prisma.schedule.findMany({
       where: { userId },
@@ -26,8 +34,9 @@ export async function GET(request: NextRequest) {
       id: t.id,
       title: t.title,
       deadline: t.deadline ? t.deadline.toISOString() : null,
+      isDone: t.isDone,
     })),
-    bucketItems: bucketItems.map((b) => ({ id: b.id, title: b.title })),
+    bucketItems: bucketItems.map((b) => ({ id: b.id, title: b.title, isDone: b.isDone })),
     routines: routines.map((r) => ({
       id: r.id,
       title: r.title,

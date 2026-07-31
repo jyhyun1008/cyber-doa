@@ -36,13 +36,15 @@ function Card({
   index,
   title,
   meta,
-  onComplete,
+  done,
+  onToggleComplete,
   onDelete,
 }: {
   index: number;
   title: string;
   meta?: string;
-  onComplete: () => void;
+  done: boolean;
+  onToggleComplete: () => void;
   onDelete: () => void;
 }) {
   const tilt = TILTS[index % TILTS.length];
@@ -50,19 +52,35 @@ function Card({
   return (
     <div
       style={{ transform: `rotate(${tilt})`, boxShadow: "0 4px 0 var(--color-doa-pink-100)" }}
-      className="relative flex min-h-[120px] flex-col justify-between rounded-3xl border-2 border-doa-pink-100/50 bg-white p-4 transition-transform hover:-translate-y-0.5 hover:rotate-0"
+      className={`relative flex min-h-[120px] flex-col justify-between rounded-3xl border-2 p-4 transition-transform hover:-translate-y-0.5 hover:rotate-0 ${
+        done ? "border-doa-pink-100/30 bg-doa-cream" : "border-doa-pink-100/50 bg-white"
+      }`}
     >
       <span
-        className={`absolute -top-2 h-4 w-11 -rotate-6 rounded-sm border border-doa-pink-100/50 opacity-90 ${tape}`}
+        className={`absolute -top-2 h-4 w-11 -rotate-6 rounded-sm border border-doa-pink-100/50 opacity-90 ${tape} ${
+          done ? "opacity-40" : ""
+        }`}
       />
-      <p className="mt-1 text-sm leading-relaxed break-words text-doa-ink">{title}</p>
+      <p
+        className={`mt-1 text-sm leading-relaxed break-words ${
+          done ? "text-doa-ink/40 line-through" : "text-doa-ink"
+        }`}
+      >
+        {title}
+      </p>
       <div className="mt-2 flex items-end justify-between gap-1">
-        {meta ? <span className="text-[11px] text-doa-pink-500">· {meta}</span> : <span />}
+        {meta ? (
+          <span className={`text-[11px] ${done ? "text-doa-ink/30" : "text-doa-pink-500"}`}>· {meta}</span>
+        ) : (
+          <span />
+        )}
         <div className="flex shrink-0 gap-1.5">
           <button
-            onClick={onComplete}
-            aria-label="완료"
-            className="flex h-7 w-7 items-center justify-center rounded-full bg-doa-blue-100 text-doa-ink/60 shadow-sm transition-transform hover:scale-110 hover:text-doa-ink"
+            onClick={onToggleComplete}
+            aria-label={done ? "완료 취소" : "완료"}
+            className={`flex h-7 w-7 items-center justify-center rounded-full shadow-sm transition-transform hover:scale-110 ${
+              done ? "bg-doa-pink-300 text-white" : "bg-doa-blue-100 text-doa-ink/60 hover:text-doa-ink"
+            }`}
           >
             <CheckIcon />
           </button>
@@ -83,11 +101,11 @@ export default function ListView() {
   const { openMenu } = useMobileMenu();
   const { memory, refresh } = useMemoryPanel();
 
-  async function completeTodo(id: string) {
+  async function toggleTodoCompleted(id: string, isDone: boolean) {
     await fetch(`/api/todos/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ isDone: true }),
+      body: JSON.stringify({ isDone: !isDone }),
     });
     refresh();
   }
@@ -97,11 +115,11 @@ export default function ListView() {
     refresh();
   }
 
-  async function completeBucketItem(id: string) {
+  async function toggleBucketItemCompleted(id: string, isDone: boolean) {
     await fetch(`/api/bucket/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ isDone: true }),
+      body: JSON.stringify({ isDone: !isDone }),
     });
     refresh();
   }
@@ -155,7 +173,8 @@ export default function ListView() {
                 index={i}
                 title={todo.title}
                 meta={todo.deadline ? formatDeadline(todo.deadline) : undefined}
-                onComplete={() => completeTodo(todo.id)}
+                done={todo.isDone}
+                onToggleComplete={() => toggleTodoCompleted(todo.id, todo.isDone)}
                 onDelete={() => deleteTodo(todo.id)}
               />
             ))}
@@ -175,7 +194,8 @@ export default function ListView() {
                 key={item.id}
                 index={i}
                 title={item.title}
-                onComplete={() => completeBucketItem(item.id)}
+                done={item.isDone}
+                onToggleComplete={() => toggleBucketItemCompleted(item.id, item.isDone)}
                 onDelete={() => deleteBucketItem(item.id)}
               />
             ))}

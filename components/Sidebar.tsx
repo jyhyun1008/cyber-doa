@@ -121,6 +121,20 @@ function DeleteButton({ onClick, label }: { onClick: () => void; label: string }
   );
 }
 
+function ToggleDoneButton({ checked, onClick, label }: { checked: boolean; onClick: () => void; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label}
+      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-md border transition-colors ${
+        checked ? "border-doa-pink-300 bg-doa-pink-300 text-white" : "border-doa-ink/30 bg-white text-transparent"
+      }`}
+    >
+      ✓
+    </button>
+  );
+}
+
 function CollapsibleSection({
   title,
   defaultOpen = false,
@@ -180,6 +194,15 @@ export default function Sidebar({
     router.refresh();
   }
 
+  async function toggleTodoCompleted(id: string, isDone: boolean) {
+    await fetch(`/api/todos/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ isDone: !isDone }),
+    });
+    refresh();
+  }
+
   async function deleteTodo(id: string) {
     await fetch(`/api/todos/${id}`, { method: "DELETE" });
     refresh();
@@ -210,6 +233,15 @@ export default function Sidebar({
 
   async function deleteRoutine(id: string) {
     await fetch(`/api/routines/${id}`, { method: "DELETE" });
+    refresh();
+  }
+
+  async function toggleBucketItemCompleted(id: string, isDone: boolean) {
+    await fetch(`/api/bucket/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ isDone: !isDone }),
+    });
     refresh();
   }
 
@@ -315,15 +347,24 @@ export default function Sidebar({
             {memory?.todos.map((todo) => (
               <li
                 key={todo.id}
-                className="flex items-center justify-between gap-1 rounded-xl bg-white/70 px-3 py-1.5 text-xs text-doa-ink/80"
+                className={`flex items-center justify-between gap-1 rounded-xl bg-white/70 px-3 py-1.5 text-xs ${
+                  todo.isDone ? "text-doa-ink/40" : "text-doa-ink/80"
+                }`}
               >
-                <span>
+                <span className={todo.isDone ? "line-through" : ""}>
                   {todo.title}
                   {todo.deadline && (
                     <span className="ml-1 text-doa-pink-500">· {formatDateTime(todo.deadline)}</span>
                   )}
                 </span>
-                <DeleteButton onClick={() => deleteTodo(todo.id)} label="할 일 삭제" />
+                <span className="flex shrink-0 items-center gap-1">
+                  <ToggleDoneButton
+                    checked={todo.isDone}
+                    onClick={() => toggleTodoCompleted(todo.id, todo.isDone)}
+                    label={todo.isDone ? "할 일 완료 취소" : "할 일 완료"}
+                  />
+                  <DeleteButton onClick={() => deleteTodo(todo.id)} label="할 일 삭제" />
+                </span>
               </li>
             ))}
           </ul>
@@ -337,10 +378,19 @@ export default function Sidebar({
             {memory?.bucketItems.map((item) => (
               <li
                 key={item.id}
-                className="flex items-center justify-between gap-1 rounded-xl bg-white/70 px-3 py-1.5 text-xs text-doa-ink/80"
+                className={`flex items-center justify-between gap-1 rounded-xl bg-white/70 px-3 py-1.5 text-xs ${
+                  item.isDone ? "text-doa-ink/40" : "text-doa-ink/80"
+                }`}
               >
-                <span>{item.title}</span>
-                <DeleteButton onClick={() => deleteBucketItem(item.id)} label="버킷리스트 삭제" />
+                <span className={item.isDone ? "line-through" : ""}>{item.title}</span>
+                <span className="flex shrink-0 items-center gap-1">
+                  <ToggleDoneButton
+                    checked={item.isDone}
+                    onClick={() => toggleBucketItemCompleted(item.id, item.isDone)}
+                    label={item.isDone ? "버킷리스트 완료 취소" : "버킷리스트 완료"}
+                  />
+                  <DeleteButton onClick={() => deleteBucketItem(item.id)} label="버킷리스트 삭제" />
+                </span>
               </li>
             ))}
           </ul>
