@@ -455,7 +455,7 @@ export async function executeMemoryTool(userId: string, name: string, args: Reco
       }
       const scheduledAt = applyDateOnlySentinel(scheduledAtRaw, Boolean(args.hasTime));
 
-      const existing = await prisma.schedule.findMany({ where: { userId, isSent: false } });
+      const existing = await prisma.schedule.findMany({ where: { userId, isCompleted: false } });
       const isDuplicate = existing.some(
         (s) => sameTitle(s.title, title) && Math.abs(s.scheduledAt.getTime() - scheduledAt.getTime()) < 5 * 60_000
       );
@@ -507,7 +507,7 @@ export async function executeMemoryTool(userId: string, name: string, args: Reco
     case "update_schedule": {
       const title = String(args.title ?? "").trim();
       if (!title) return { ok: false, error: "title is required" };
-      const pending = await prisma.schedule.findMany({ where: { userId, isSent: false } });
+      const pending = await prisma.schedule.findMany({ where: { userId, isCompleted: false } });
       const match = findBestTitleMatch(pending, title);
       if (!match) return { ok: false, error: "matching schedule not found" };
 
@@ -525,7 +525,7 @@ export async function executeMemoryTool(userId: string, name: string, args: Reco
     case "cancel_schedule": {
       const title = String(args.title ?? "").trim();
       if (!title) return { ok: false, error: "title is required" };
-      const pending = await prisma.schedule.findMany({ where: { userId, isSent: false } });
+      const pending = await prisma.schedule.findMany({ where: { userId, isCompleted: false } });
       const match = findBestTitleMatch(pending, title);
       if (!match) return { ok: false, error: "matching schedule not found" };
       await prisma.schedule.deleteMany({ where: { id: match.id, userId } });

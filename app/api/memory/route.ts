@@ -12,7 +12,11 @@ export async function GET(request: NextRequest) {
     prisma.todo.findMany({ where: { userId, isDone: false }, orderBy: { deadline: "asc" }, take: 10 }),
     prisma.bucketItem.findMany({ where: { userId, isDone: false }, orderBy: { createdAt: "asc" }, take: 20 }),
     prisma.routine.findMany({ where: { userId }, take: 20, orderBy: { createdAt: "asc" } }),
-    prisma.schedule.findMany({ where: { userId, isSent: false }, orderBy: { scheduledAt: "asc" }, take: 10 }),
+    prisma.schedule.findMany({
+      where: { userId },
+      orderBy: [{ isCompleted: "asc" }, { scheduledAt: "asc" }],
+      take: 10,
+    }),
   ]);
 
   return NextResponse.json({
@@ -36,6 +40,7 @@ export async function GET(request: NextRequest) {
       id: s.id,
       title: s.title,
       scheduledAt: s.scheduledAt.toISOString(),
+      isCompleted: s.isCompleted,
     })),
   });
 }

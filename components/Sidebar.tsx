@@ -190,6 +190,15 @@ export default function Sidebar({
     refresh();
   }
 
+  async function toggleScheduleCompleted(id: string, isCompleted: boolean) {
+    await fetch(`/api/schedules/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ isCompleted: !isCompleted }),
+    });
+    refresh();
+  }
+
   async function toggleRoutineCompleted(id: string, completedToday: boolean) {
     await fetch(`/api/routines/${id}`, {
       method: "PATCH",
@@ -382,13 +391,28 @@ export default function Sidebar({
             {memory?.schedules.map((schedule) => (
               <li
                 key={schedule.id}
-                className="flex items-center justify-between gap-1 rounded-xl bg-white/70 px-3 py-1.5 text-xs text-doa-ink/80"
+                className={`flex items-center justify-between gap-1 rounded-xl bg-white/70 px-3 py-1.5 text-xs ${
+                  schedule.isCompleted ? "text-doa-ink/40" : "text-doa-ink/80"
+                }`}
               >
-                <span>
+                <span className={schedule.isCompleted ? "line-through" : ""}>
                   {schedule.title}
                   <span className="ml-1 text-doa-pink-500">· {formatDateTime(schedule.scheduledAt)}</span>
                 </span>
-                <DeleteButton onClick={() => deleteSchedule(schedule.id)} label="일정 삭제" />
+                <span className="flex shrink-0 items-center gap-1">
+                  <button
+                    onClick={() => toggleScheduleCompleted(schedule.id, schedule.isCompleted)}
+                    aria-label={schedule.isCompleted ? "완료 취소" : "완료 처리"}
+                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-md border transition-colors ${
+                      schedule.isCompleted
+                        ? "border-doa-pink-300 bg-doa-pink-300 text-white"
+                        : "border-doa-ink/30 bg-white text-transparent"
+                    }`}
+                  >
+                    ✓
+                  </button>
+                  <DeleteButton onClick={() => deleteSchedule(schedule.id)} label="일정 삭제" />
+                </span>
               </li>
             ))}
           </ul>

@@ -27,7 +27,7 @@ export default function InstallPrompt() {
         await deferredEvent.prompt();
         setDeferredEvent(null);
       }}
-      className="rounded-full bg-white/80 px-3 py-1 text-xs text-doa-pink-500 shadow-sm"
+      className="rounded-full bg-white/80 px-3 py-2 text-xs text-doa-pink-500 shadow-sm hover:bg-white"
     >
       홈 화면에 추가
     </button>

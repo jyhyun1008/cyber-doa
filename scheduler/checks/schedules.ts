@@ -4,7 +4,7 @@ import { triggerProactiveMessage } from "../send";
 
 export async function checkSchedules(userId: string, now: Date) {
   const dueSchedules = await prisma.schedule.findMany({
-    where: { userId, isSent: false, scheduledAt: { lte: now } },
+    where: { userId, isSent: false, isCompleted: false, scheduledAt: { lte: now } },
   });
 
   for (const schedule of dueSchedules) {

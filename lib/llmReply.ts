@@ -35,7 +35,7 @@ export async function buildSystemPrompt(userId: string): Promise<string> {
     prisma.todo.findMany({ where: { userId, isDone: false }, orderBy: { deadline: "asc" }, take: 20 }),
     prisma.bucketItem.findMany({ where: { userId, isDone: false }, orderBy: { createdAt: "asc" }, take: 20 }),
     prisma.routine.findMany({ where: { userId, isActive: true }, take: 20 }),
-    prisma.schedule.findMany({ where: { userId, isSent: false }, orderBy: { scheduledAt: "asc" }, take: 20 }),
+    prisma.schedule.findMany({ where: { userId, isCompleted: false }, orderBy: { scheduledAt: "asc" }, take: 20 }),
   ]);
 
   const todoLines = todos.length

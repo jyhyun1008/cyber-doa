@@ -20,7 +20,7 @@ export type MemorySnapshot = {
     isActive: boolean;
     completedToday: boolean;
   }[];
-  schedules: { id: string; title: string; scheduledAt: string }[];
+  schedules: { id: string; title: string; scheduledAt: string; isCompleted: boolean }[];
 };
 
 export type AppSettings = {

@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
   const [routines, todos, schedules] = await Promise.all([
     prisma.routine.findMany({ where: { userId, isActive: true } }),
     prisma.todo.findMany({ where: { userId, isDone: false, deadline: { not: null } } }),
-    prisma.schedule.findMany({ where: { userId, isSent: false } }),
+    prisma.schedule.findMany({ where: { userId, isCompleted: false } }),
   ]);
 
   const items: CalendarItem[] = [];
