@@ -88,11 +88,8 @@ function ChecklistIcon() {
 function WeekIcon() {
   return (
     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="3" y="4" width="18" height="18" rx="2" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <line x1="7" y1="12" x2="17" y2="12" />
-      <line x1="7" y1="16" x2="13" y2="16" />
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3.5 2" />
     </svg>
   );
 }
@@ -342,11 +339,11 @@ export default function Sidebar({
           <NavIconButton href="/calendar" active={pathname === "/calendar"} label="캘린더 보기">
             <CalendarIcon />
           </NavIconButton>
-          <NavIconButton href="/list" active={pathname === "/list"} label="데드라인 · 버킷리스트 보기">
-            <ChecklistIcon />
-          </NavIconButton>
           <NavIconButton href="/week" active={pathname === "/week"} label="위클리 보기">
             <WeekIcon />
+          </NavIconButton>
+          <NavIconButton href="/list" active={pathname === "/list"} label="데드라인 · 버킷리스트 보기">
+            <ChecklistIcon />
           </NavIconButton>
         </div>
 
