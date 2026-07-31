@@ -1,6 +1,6 @@
 import type OpenAI from "openai";
 import { prisma } from "./db";
-import { applyDateOnlySentinel } from "./time";
+import { applyDateOnlySentinel, applyDeadlineDateOnlySentinel } from "./time";
 
 const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 
@@ -27,7 +27,7 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       name: "add_profile_note",
       strict: true,
       description:
-        "유저의 성격, 취향, 좋아하는 것/기분 좋아지는 것, 요즘 관심사나 사는 모습처럼 '사람 자체'에 대해 새롭게 알게 된 사실 하나를 짧게 한두 문장으로 전달(자동으로 기존 메모 뒤에 이어붙여지니 기존 내용을 다시 안 써도 됨). 유저가 부탁하지 않았어도 잡담 중 이런 단서가 나오면 이걸로 기억해. 할 일/일정/루틴처럼 이미 별도로 저장되는 항목은 여기 넣지 마.",
+        "유저의 성격, 취향, 좋아하는 것/기분 좋아지는 것, 요즘 관심사나 사는 모습처럼 '사람 자체'에 대해 새롭게 알게 된 사실 하나를 짧게 한두 문장으로 전달(자동으로 기존 메모 뒤에 이어붙여지니 기존 내용을 다시 안 써도 됨). 유저가 부탁하지 않았어도 잡담 중 이런 단서가 나오면 이걸로 기억해. 데드라인/일정/루틴처럼 이미 별도로 저장되는 항목은 여기 넣지 마.",
       parameters: {
         type: "object",
         properties: { note: { type: "string", description: "새로 알게 된 사실 한두 문장" } },
@@ -56,7 +56,7 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "add_todo",
       strict: true,
-      description: "유저가 앞으로 하려고 계획 중인 일을 할 일 목록에 추가.",
+      description: "유저가 앞으로 하려고 계획 중인 일을 데드라인 목록에 추가.",
       parameters: {
         type: "object",
         properties: {
@@ -82,7 +82,7 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       name: "add_bucket_item",
       strict: true,
       description:
-        "유저가 언젠가 해보고 싶다고 말한 일을 버킷리스트에 추가(할 일 목록과는 다름 — 마감이나 급한 일정이 없는 막연한 소망/하고 싶은 일).",
+        "유저가 언젠가 해보고 싶다고 말한 일을 버킷리스트에 추가(데드라인 목록과는 다름 — 마감이나 급한 일정이 없는 막연한 소망/하고 싶은 일).",
       parameters: {
         type: "object",
         properties: { title: { type: "string" } },
@@ -173,11 +173,11 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       name: "update_todo",
       strict: true,
       description:
-        "이미 등록된 할 일의 제목이나 마감일을 변경. title로 기존 할 일을 찾아서 수정. newTitle/newDeadline 중 바꿀 값만 채우고 나머지는 null. 마감일을 아예 없애고 싶으면 clearDeadline을 true로.",
+        "이미 등록된 데드라인의 제목이나 마감일을 변경. title로 기존 데드라인를 찾아서 수정. newTitle/newDeadline 중 바꿀 값만 채우고 나머지는 null. 마감일을 아예 없애고 싶으면 clearDeadline을 true로.",
       parameters: {
         type: "object",
         properties: {
-          title: { type: "string", description: "변경할 기존 할 일의 제목(위 할 일 목록 참고)" },
+          title: { type: "string", description: "변경할 기존 데드라인의 제목(위 데드라인 목록 참고)" },
           newTitle: { type: ["string", "null"], description: "새 제목. 안 바꾸면 null." },
           newDeadline: {
             type: ["string", "null"],
@@ -204,10 +204,10 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "complete_todo",
       strict: true,
-      description: "유저가 이미 끝냈다고 말한 할 일을 완료 처리해서 목록에서 지움. title로 기존 할 일을 찾아서 처리.",
+      description: "유저가 이미 끝냈다고 말한 데드라인를 완료 처리해서 목록에서 지움. title로 기존 데드라인를 찾아서 처리.",
       parameters: {
         type: "object",
-        properties: { title: { type: "string", description: "완료할 할 일의 제목(위 할 일 목록 참고)" } },
+        properties: { title: { type: "string", description: "완료할 데드라인의 제목(위 데드라인 목록 참고)" } },
         required: ["title"],
         additionalProperties: false,
       },
@@ -218,10 +218,10 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     function: {
       name: "delete_todo",
       strict: true,
-      description: "유저가 더 이상 안 하겠다고 하거나 취소한 할 일을 목록에서 삭제.",
+      description: "유저가 더 이상 안 하겠다고 하거나 취소한 데드라인를 목록에서 삭제.",
       parameters: {
         type: "object",
-        properties: { title: { type: "string", description: "삭제할 할 일의 제목(위 할 일 목록 참고)" } },
+        properties: { title: { type: "string", description: "삭제할 데드라인의 제목(위 데드라인 목록 참고)" } },
         required: ["title"],
         additionalProperties: false,
       },
@@ -392,7 +392,7 @@ export async function executeMemoryTool(userId: string, name: string, args: Reco
       const deadlineRaw = args.deadline ? new Date(String(args.deadline)) : null;
       const deadline =
         deadlineRaw && !isNaN(deadlineRaw.getTime())
-          ? applyDateOnlySentinel(deadlineRaw, Boolean(args.hasTime))
+          ? applyDeadlineDateOnlySentinel(deadlineRaw, Boolean(args.hasTime))
           : null;
       await prisma.todo.create({
         data: { userId, title, deadline },
@@ -479,7 +479,7 @@ export async function executeMemoryTool(userId: string, name: string, args: Reco
         data.deadline = null;
       } else if (args.newDeadline) {
         const newDate = new Date(String(args.newDeadline));
-        if (!isNaN(newDate.getTime())) data.deadline = applyDateOnlySentinel(newDate, Boolean(args.newHasTime));
+        if (!isNaN(newDate.getTime())) data.deadline = applyDeadlineDateOnlySentinel(newDate, Boolean(args.newHasTime));
       }
       if (!Object.keys(data).length) return { ok: false, error: "nothing to update" };
 

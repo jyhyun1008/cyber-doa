@@ -11,7 +11,7 @@ const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 const TYPE_META = {
   routine: { label: "루틴", dot: "bg-doa-blue-300", chip: "bg-doa-blue-100 text-doa-ink" },
   schedule: { label: "일정", dot: "bg-doa-pink-300", chip: "bg-doa-pink-100 text-doa-ink" },
-  todo: { label: "할 일 마감", dot: "bg-doa-purple-300", chip: "bg-doa-purple-100 text-doa-ink" },
+  todo: { label: "데드라인", dot: "bg-doa-purple-300", chip: "bg-doa-purple-100 text-doa-ink" },
 } as const;
 
 function pad(n: number) {

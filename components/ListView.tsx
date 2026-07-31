@@ -3,11 +3,11 @@
 import Image from "next/image";
 import { useMemoryPanel } from "@/hooks/useMemoryPanel";
 import { useMobileMenu } from "@/contexts/MobileMenuContext";
-import { getHHMM, NO_TIME_SENTINEL_HHMM } from "@/lib/time";
+import { getHHMM, NO_TIME_DEADLINE_SENTINEL_HHMM } from "@/lib/time";
 
 function formatDeadline(iso: string) {
   const date = new Date(iso);
-  const hasNoSpecificTime = getHHMM(date) === NO_TIME_SENTINEL_HHMM;
+  const hasNoSpecificTime = getHHMM(date) === NO_TIME_DEADLINE_SENTINEL_HHMM;
   return new Intl.DateTimeFormat("ko-KR", {
     timeZone: "Asia/Seoul",
     month: "numeric",
@@ -37,6 +37,7 @@ function Card({
   title,
   meta,
   done,
+  accent = "default",
   onToggleComplete,
   onDelete,
 }: {
@@ -44,14 +45,18 @@ function Card({
   title: string;
   meta?: string;
   done: boolean;
+  accent?: "default" | "todo";
   onToggleComplete: () => void;
   onDelete: () => void;
 }) {
   const tilt = TILTS[index % TILTS.length];
+  const isTodo = accent === "todo";
   const tape = TAPE_STYLES[index % TAPE_STYLES.length];
+  const shadowColor = isTodo ? "var(--color-doa-purple-100)" : "var(--color-doa-pink-100)";
+  const metaColor = isTodo ? "text-doa-purple-300" : "text-doa-pink-500";
   return (
     <div
-      style={{ transform: `rotate(${tilt})`, boxShadow: "0 4px 0 var(--color-doa-pink-100)" }}
+      style={{ transform: `rotate(${tilt})`, boxShadow: `0 4px 0 ${shadowColor}` }}
       className={`relative flex min-h-[120px] flex-col justify-between rounded-3xl border-2 p-4 transition-transform hover:-translate-y-0.5 hover:rotate-0 ${
         done ? "border-doa-pink-100/30 bg-doa-cream" : "border-doa-pink-100/50 bg-white"
       }`}
@@ -70,7 +75,7 @@ function Card({
       </p>
       <div className="mt-2 flex items-end justify-between gap-1">
         {meta ? (
-          <span className={`text-[11px] ${done ? "text-doa-ink/30" : "text-doa-pink-500"}`}>· {meta}</span>
+          <span className={`text-[11px] ${done ? "text-doa-ink/30" : metaColor}`}>· {meta}</span>
         ) : (
           <span />
         )}
@@ -79,7 +84,11 @@ function Card({
             onClick={onToggleComplete}
             aria-label={done ? "완료 취소" : "완료"}
             className={`flex h-7 w-7 items-center justify-center rounded-full shadow-sm transition-transform hover:scale-110 ${
-              done ? "bg-doa-pink-300 text-white" : "bg-doa-blue-100 text-doa-ink/60 hover:text-doa-ink"
+              done
+                ? isTodo
+                  ? "bg-doa-purple-300 text-white"
+                  : "bg-doa-pink-300 text-white"
+                : "bg-doa-blue-100 text-doa-ink/60 hover:text-doa-ink"
             }`}
           >
             <CheckIcon />
@@ -145,7 +154,7 @@ export default function ListView() {
           </span>
         </div>
         <span className="hidden font-[family-name:var(--font-cute-heading)] text-lg text-doa-pink-500 lg:inline">
-          할 일 · 버킷리스트
+          데드라인 · 버킷리스트
         </span>
         <button
           onClick={openMenu}
@@ -161,10 +170,10 @@ export default function ListView() {
       <div className="scrollbar-cute flex-1 space-y-6 overflow-y-auto px-4 py-4">
         <section className="flex flex-col gap-2">
           <h2 className="font-[family-name:var(--font-cute-heading)] text-sm text-doa-pink-500">
-            할 일
+            데드라인
           </h2>
           {memory && memory.todos.length === 0 && (
-            <p className="text-xs text-doa-ink/50">등록된 할 일이 없어요.</p>
+            <p className="text-xs text-doa-ink/50">등록된 데드라인이 없어요.</p>
           )}
           <div className="grid grid-cols-2 gap-4 pt-2 sm:grid-cols-3">
             {memory?.todos.map((todo, i) => (
@@ -174,6 +183,7 @@ export default function ListView() {
                 title={todo.title}
                 meta={todo.deadline ? formatDeadline(todo.deadline) : undefined}
                 done={todo.isDone}
+                accent="todo"
                 onToggleComplete={() => toggleTodoCompleted(todo.id, todo.isDone)}
                 onDelete={() => deleteTodo(todo.id)}
               />

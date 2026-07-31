@@ -83,18 +83,34 @@ export function kstDateTimeToUTC(year: number, month: number, day: number, hour:
   return new Date(Date.UTC(year, month - 1, day, hour, minute) - SEOUL_OFFSET_MINUTES * 60_000);
 }
 
-/** Sentinel HH:mm used for todos/schedules where the user gave only a date, no specific time. */
+/** Sentinel HH:mm used for schedules (일정) where the user gave only a date, no specific start time. */
 export const NO_TIME_SENTINEL_HHMM = "05:01";
+
+/** Sentinel HH:mm used for deadlines (데드라인) where the user gave only a due date — "by end of day". */
+export const NO_TIME_DEADLINE_SENTINEL_HHMM = "23:59";
+
+function applySentinelTime(date: Date, hasTime: boolean, sentinelHHMM: string): Date {
+  if (hasTime) return date;
+  const p = partsFor(date);
+  const [hour, minute] = sentinelHHMM.split(":").map(Number);
+  return kstDateTimeToUTC(Number(p.year), Number(p.month), Number(p.day), hour, minute);
+}
 
 /**
  * If `hasTime` is false, snaps `date` to 05:01 KST on the same calendar day — callers later check
  * `getHHMM(date) === NO_TIME_SENTINEL_HHMM` to know when to hide the time portion in the UI instead
- * of showing a made-up time the user never specified.
+ * of showing a made-up time the user never specified. Used for schedules (일정).
  */
 export function applyDateOnlySentinel(date: Date, hasTime: boolean): Date {
-  if (hasTime) return date;
-  const p = partsFor(date);
-  return kstDateTimeToUTC(Number(p.year), Number(p.month), Number(p.day), 5, 1);
+  return applySentinelTime(date, hasTime, NO_TIME_SENTINEL_HHMM);
+}
+
+/**
+ * Same idea as `applyDateOnlySentinel`, but for deadlines (데드라인): snaps to 23:59 KST — a
+ * date-only deadline means "due by end of that day", not "due first thing in the morning".
+ */
+export function applyDeadlineDateOnlySentinel(date: Date, hasTime: boolean): Date {
+  return applySentinelTime(date, hasTime, NO_TIME_DEADLINE_SENTINEL_HHMM);
 }
 
 /** Noon KST on the calendar day before `date` (also in KST). */

@@ -2,7 +2,14 @@ import type OpenAI from "openai";
 import { openai, getOpenAIClient, OPENAI_MODEL } from "./openai";
 import { chatTools, executeMemoryTool, MEMORY_TOOL_NAMES, dayIndicesToLabels } from "./tools";
 import { prisma } from "./db";
-import { formatKoreanDateTime, isoKstOffset, getHHMM, getDateKey, NO_TIME_SENTINEL_HHMM } from "./time";
+import {
+  formatKoreanDateTime,
+  isoKstOffset,
+  getHHMM,
+  getDateKey,
+  NO_TIME_SENTINEL_HHMM,
+  NO_TIME_DEADLINE_SENTINEL_HHMM,
+} from "./time";
 
 export type ChatMessage = { role: "user" | "assistant"; content: string; createdAt: Date };
 
@@ -23,10 +30,11 @@ function formatMessageTimestamp(date: Date): string {
 
 const FALLBACK_REPLY = { reply: "음... 다시 한 번 말씀해 주실 수 있으세요?", thinking_seconds: 2 };
 
-// 05:01 KST is a sentinel meaning "user gave only a date, no specific time" (see applyDateOnlySentinel
-// in lib/time.ts) — show the model a date-only marker instead, so it doesn't treat 05:01 as a real time.
-function formatDateOrDateTime(date: Date): string {
-  return getHHMM(date) === NO_TIME_SENTINEL_HHMM ? `${getDateKey(date)} (시각 미지정)` : isoKstOffset(date);
+// 05:01/23:59 KST are sentinels meaning "user gave only a date, no specific time" (see
+// applyDateOnlySentinel/applyDeadlineDateOnlySentinel in lib/time.ts) — show the model a date-only
+// marker instead, so it doesn't treat the sentinel as a real time.
+function formatDateOrDateTime(date: Date, sentinel: string = NO_TIME_SENTINEL_HHMM): string {
+  return getHHMM(date) === sentinel ? `${getDateKey(date)} (시각 미지정)` : isoKstOffset(date);
 }
 
 export async function buildSystemPrompt(userId: string): Promise<string> {
@@ -40,7 +48,10 @@ export async function buildSystemPrompt(userId: string): Promise<string> {
 
   const todoLines = todos.length
     ? todos
-        .map((t) => `- ${t.title}${t.deadline ? ` (마감: ${formatDateOrDateTime(t.deadline)})` : ""}`)
+        .map(
+          (t) =>
+            `- ${t.title}${t.deadline ? ` (마감: ${formatDateOrDateTime(t.deadline, NO_TIME_DEADLINE_SENTINEL_HHMM)})` : ""}`
+        )
         .join("\n")
     : "(없음)";
 
@@ -72,10 +83,10 @@ ${formatKoreanDateTime()} (ISO: ${isoKstOffset()})
 # 유저 이름(로그인 아이디)
 ${user?.username ? user.username : "(모름)"}
 
-# 유저라는 사람에 대해 알고 있는 정보 (성격/취향/기분/생활 위주의 긴 줄글 메모. 할 일·일정·루틴은 여기 안 넣고 아래 각자 목록에 따로 저장함)
+# 유저라는 사람에 대해 알고 있는 정보 (성격/취향/기분/생활 위주의 긴 줄글 메모. 데드라인·일정·루틴은 여기 안 넣고 아래 각자 목록에 따로 저장함)
 ${user?.profile ? user.profile : "(아직 알고 있는 정보 없음)"}
 
-# 유저의 할 일 목록 (마감/기한이 있는 실행할 일)
+# 유저의 데드라인 목록 (마감/기한이 있는 실행할 일)
 ${todoLines}
 
 # 유저의 버킷리스트 (마감 없이 언젠가 해보고 싶은 막연한 소망)
@@ -88,23 +99,23 @@ ${routineLines}
 ${scheduleLines}
 
 # 도구 사용 규칙
-- 이번 유저 메시지에 새로 등장한 정보(새로운 할 일/루틴/일정, 새로 알게 된 유저 정보)가 있을 때만 해당 메모리 도구를 호출해.
-- 위 "할 일 목록/반복 루틴/예정된 일정"에 이미 올라와 있는 항목은 절대 다시 add_todo/add_routine/add_schedule로 추가하지 마. 이미 저장된 내용은 그냥 참고만 하고, 유저가 이번에 새로 말하지 않았다면 손대지 마.
+- 이번 유저 메시지에 새로 등장한 정보(새로운 데드라인/루틴/일정, 새로 알게 된 유저 정보)가 있을 때만 해당 메모리 도구를 호출해.
+- 위 "데드라인 목록/반복 루틴/예정된 일정"에 이미 올라와 있는 항목은 절대 다시 add_todo/add_routine/add_schedule로 추가하지 마. 이미 저장된 내용은 그냥 참고만 하고, 유저가 이번에 새로 말하지 않았다면 손대지 마.
 - 이번 턴에 새로 기억할 내용이 하나도 없으면 메모리 도구는 아예 호출하지 말고 send_reply만 호출해.
-- 유저 프로필(위 "유저라는 사람에 대해 알고 있는 정보")은 성격, 취향, 좋아하는 것, 기분 좋아지는 것/활동, 요즘 관심사, 사는 모습, 인간관계 같은 것만 담아. 할 일/버킷리스트/루틴/일정처럼 이미 각자 목록에 저장되는 항목은 절대 여기에 나열하지 마(중복이고, 그 목록들이 이미 따로 관리돼). "OO 작업을 해야 한다" 같은 할일성 문장은 프로필에 쓰지 마.
+- 유저 프로필(위 "유저라는 사람에 대해 알고 있는 정보")은 성격, 취향, 좋아하는 것, 기분 좋아지는 것/활동, 요즘 관심사, 사는 모습, 인간관계 같은 것만 담아. 데드라인/버킷리스트/루틴/일정처럼 이미 각자 목록에 저장되는 항목은 절대 여기에 나열하지 마(중복이고, 그 목록들이 이미 따로 관리돼). "OO 작업을 해야 한다" 같은 문장은 프로필에 쓰지 마.
 - 잡담 중에 지나가듯 성격/취향/기분/생활을 드러내는 말이 나오면(예: "나 사실 겁 많은데 공포영화는 좋아해", "나 아침엔 완전 무기력해", "이런 음악 들으면 기분 좋아져") 유저가 "기억해줘"라고 부탁하지 않아도 알아서 add_profile_note를 호출해서 새로 알게 된 사실 한두 문장만 짧게 전달해(기존 프로필 내용을 다시 안 써도 자동으로 뒤에 이어붙여져). 매번 다 저장할 필요는 없지만, 그 사람을 이해하는 데 의미 있는 단서다 싶으면 그냥 흘려듣지 말고 저장해.
 - update_user_profile(전체 텍스트 교체)은 유저가 "프로필 정리해줘"처럼 명시적으로 정리/재구성을 요청했을 때만 써. 이때도 여전히 의미 있는 기존 내용은 빠짐없이 다 반영해서 다시 쓰고, 정말 더 이상 의미 없어진 것만 자연스럽게 정리해서 빼 — 실수로 기존 내용을 통째로 날리면 안 돼.
 - 상대적 시간 표현(예: "4시간 후", "30분 후")은 위에 적힌 "현재 시각"의 ISO 값을 기준으로 정확히 더하거나 빼서 add_schedule에 전달해.
 - add_schedule에 전달하는 scheduledAt은 반드시 위 "현재 시각" ISO와 같은 형식으로 "+09:00" 오프셋을 붙여서 전달해(예: "2026-07-22T13:58:00+09:00"). "Z"나 UTC로 변환하지 마 — 위에 보이는 시:분 숫자를 그대로 쓰고 끝에 +09:00만 붙이면 돼.
-- 유저가 "그거 다 했어", "끝났어" 처럼 위 할 일 목록에 있는 항목을 완료했다고 하면 complete_todo를 호출해(목록에서 지우기만 하면 되고, 다시 add_todo로 추가하지 마). 안 하겠다고 취소하면 delete_todo를 호출해.
-- 유저가 위 할 일 목록에 있는 항목의 제목이나 마감일을 바꿔달라고 하면(예: "그거 마감일 다음주로 바꿔줘", "시간 빼고 날짜만 있게 해줘", "마감일 없애줘") update_todo로 기존 항목을 수정해(새로 add_todo로 추가하거나 delete_todo 후 재등록하지 마).
-- 유저가 "언젠가 ~해보고 싶다", "죽기 전에 ~하고 싶어" 처럼 마감/기한 없이 막연히 하고 싶은 일을 말하면 add_todo가 아니라 add_bucket_item으로 버킷리스트에 넣어. 반대로 "~까지 해야 해", "~해야 하는데" 처럼 기한이 있거나 실행해야 하는 일은 add_todo(할 일)로 넣어. 버킷리스트 항목을 이뤘다고 하면 complete_bucket_item, 관두겠다고 하면 delete_bucket_item을 호출해.
+- 유저가 "그거 다 했어", "끝났어" 처럼 위 데드라인 목록에 있는 항목을 완료했다고 하면 complete_todo를 호출해(목록에서 지우기만 하면 되고, 다시 add_todo로 추가하지 마). 안 하겠다고 취소하면 delete_todo를 호출해.
+- 유저가 위 데드라인 목록에 있는 항목의 제목이나 마감일을 바꿔달라고 하면(예: "그거 마감일 다음주로 바꿔줘", "시간 빼고 날짜만 있게 해줘", "마감일 없애줘") update_todo로 기존 항목을 수정해(새로 add_todo로 추가하거나 delete_todo 후 재등록하지 마).
+- 유저가 "언젠가 ~해보고 싶다", "죽기 전에 ~하고 싶어" 처럼 마감/기한 없이 막연히 하고 싶은 일을 말하면 add_todo가 아니라 add_bucket_item으로 버킷리스트에 넣어. 반대로 "~까지 해야 해", "~해야 하는데" 처럼 기한이 있거나 실행해야 하는 일은 add_todo(데드라인)로 넣어. 버킷리스트 항목을 이뤘다고 하면 complete_bucket_item, 관두겠다고 하면 delete_bucket_item을 호출해.
 - 유저가 위 예정된 일정의 시간이나 내용을 바꿔달라고 하면(예: "그 일정 1시간 미뤄줘", "일정 내일로 바꿔줘") update_schedule로 기존 항목을 수정해(새로 add_schedule 하지 말고). 아예 취소하면 cancel_schedule을 호출해.
 - 유저가 위 반복 루틴의 요일/시간을 바꿔달라고 하면(예: "일요일은 빼줘", "주말엔 하지 마", "시간 8시로 바꿔줘") update_routine으로 기존 항목을 수정해(새로 add_routine 하지 말고). newDaysOfWeek에는 바뀐 뒤의 전체 요일 배열을 계산해서 전달해(예: 매일[0,1,2,3,4,5,6]에서 일요일 제외면 [1,2,3,4,5,6]). 아예 그만하겠다고 하면 delete_routine을 호출해.
 - update_todo/complete_todo/delete_todo/complete_bucket_item/delete_bucket_item/update_schedule/cancel_schedule/update_routine/delete_routine의 title은 위 목록에 있는 제목과 최대한 비슷하게 적어야 정확히 찾아져.
 - 답장은 항상 이번 유저 메시지(가장 마지막 메시지)에 대한 반응이어야 해. 이전 턴에서 이미 한 말을 이유 없이 반복하지 마.
 - 특히 조심할 것: 이전 턴에서 "~완료 처리했어요", "~로 바꿨어요" 처럼 뭔가 처리했다고 이미 확인해준 항목은, 이번 유저 메시지가 그 항목을 다시 언급하지 않는 이상 절대 다시 언급하지 마. "A도 완료했고 B도 바꿨어요" 식으로 예전에 한 일을 답장마다 계속 덧붙이지 마 — 이번 턴에 실제로 한 일에 대해서만 답해.
-  예시: 직전 턴에 "A 할 일을 완료 처리했어요"라고 답했는데 이번 유저 메시지가 "B도 해줘"뿐이라면, 이번 답장은 B 얘기만 해("B도 처리했어요!"). "A도 완료했고 B도 처리했어요"처럼 A를 다시 끌어오면 틀린 답장이야.
+  예시: 직전 턴에 "A 데드라인를 완료 처리했어요"라고 답했는데 이번 유저 메시지가 "B도 해줘"뿐이라면, 이번 답장은 B 얘기만 해("B도 처리했어요!"). "A도 완료했고 B도 처리했어요"처럼 A를 다시 끌어오면 틀린 답장이야.
 - 대화 내역의 각 메시지 앞에는 "[월/일 시:분]" 형식으로 보낸 시각이 참고용으로 붙어 있어(이건 시스템이 붙인 메타데이터일 뿐, 유저가 실제로 쓴 말이 아니야). 마지막 유저 메시지와 그 전 메시지 사이에 시간이 많이 비었으면(몇 시간, 하루 이상 등) 자연스럽게 알아채고 반응해도 좋아(예: "오랜만이에요!"). 하지만 send_reply의 reply 값에는 "[월/일 시:분]" 같은 대괄호 표기를 절대 그대로 포함하지 마 — 자연스러운 문장으로만 답해.
 - 답장을 할 때는 send_reply 도구를 사용해. 다른 메모리 도구를 호출했다면 그 다음에 이어서 send_reply도 호출해.
 - thinking_seconds는 실제로 고민해야 할 만큼만 크게 잡아. 짧고 간단한 대답(예: "네!", "넵")은 1~3초, 복잡하거나 신중히 생각해야 하는 답은 최대 60초까지도 가능.`;

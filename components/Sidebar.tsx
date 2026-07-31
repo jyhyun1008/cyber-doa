@@ -8,7 +8,7 @@ import { useMemoryPanel } from "@/hooks/useMemoryPanel";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useOpenAIKey } from "@/hooks/useOpenAIKey";
-import { getWeekday, getHHMM, NO_TIME_SENTINEL_HHMM } from "@/lib/time";
+import { getWeekday, getHHMM, NO_TIME_SENTINEL_HHMM, NO_TIME_DEADLINE_SENTINEL_HHMM } from "@/lib/time";
 import InstallPrompt from "./InstallPrompt";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -21,9 +21,9 @@ function formatDaysOfWeek(days: number[]) {
     .join(", ");
 }
 
-function formatDateTime(iso: string) {
+function formatDateTime(iso: string, sentinel: string = NO_TIME_SENTINEL_HHMM) {
   const date = new Date(iso);
-  const hasNoSpecificTime = getHHMM(date) === NO_TIME_SENTINEL_HHMM;
+  const hasNoSpecificTime = getHHMM(date) === sentinel;
   return new Intl.DateTimeFormat("ko-KR", {
     timeZone: "Asia/Seoul",
     month: "numeric",
@@ -81,6 +81,18 @@ function ChecklistIcon() {
       <path d="M9 4h6a2 2 0 0 1 2 2v1H7V6a2 2 0 0 1 2-2z" />
       <rect x="5" y="7" width="14" height="14" rx="2" />
       <path d="M9 12h6M9 16h4" />
+    </svg>
+  );
+}
+
+function WeekIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="7" y1="12" x2="17" y2="12" />
+      <line x1="7" y1="16" x2="13" y2="16" />
     </svg>
   );
 }
@@ -187,6 +199,7 @@ export default function Sidebar({
   const { settings, toggleSignup } = useAppSettings();
   const { apiKey, setApiKey, clearApiKey } = useOpenAIKey();
   const [apiKeyInput, setApiKeyInput] = useState("");
+  const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -194,11 +207,36 @@ export default function Sidebar({
     router.refresh();
   }
 
+  // marking something done plays a swipe-out animation before it actually leaves the list, instead
+  // of vanishing instantly — the item is kept in the rendered list (via completingIds) just long
+  // enough for the CSS transition to finish, then refresh() drops it for good.
+  function completeWithAnimation(id: string, endpoint: string) {
+    setCompletingIds((prev) => new Set(prev).add(id));
+    fetch(endpoint, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ isDone: true }),
+    }).then(() => {
+      setTimeout(() => {
+        setCompletingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        refresh();
+      }, 300);
+    });
+  }
+
   async function toggleTodoCompleted(id: string, isDone: boolean) {
+    if (!isDone) {
+      completeWithAnimation(id, `/api/todos/${id}`);
+      return;
+    }
     await fetch(`/api/todos/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ isDone: !isDone }),
+      body: JSON.stringify({ isDone: false }),
     });
     refresh();
   }
@@ -237,10 +275,14 @@ export default function Sidebar({
   }
 
   async function toggleBucketItemCompleted(id: string, isDone: boolean) {
+    if (!isDone) {
+      completeWithAnimation(id, `/api/bucket/${id}`);
+      return;
+    }
     await fetch(`/api/bucket/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ isDone: !isDone }),
+      body: JSON.stringify({ isDone: false }),
     });
     refresh();
   }
@@ -300,8 +342,11 @@ export default function Sidebar({
           <NavIconButton href="/calendar" active={pathname === "/calendar"} label="캘린더 보기">
             <CalendarIcon />
           </NavIconButton>
-          <NavIconButton href="/list" active={pathname === "/list"} label="할 일 · 버킷리스트 보기">
+          <NavIconButton href="/list" active={pathname === "/list"} label="데드라인 · 버킷리스트 보기">
             <ChecklistIcon />
+          </NavIconButton>
+          <NavIconButton href="/week" active={pathname === "/week"} label="위클리 보기">
+            <WeekIcon />
           </NavIconButton>
         </div>
 
@@ -337,63 +382,6 @@ export default function Sidebar({
           <p className="scrollbar-cute max-h-28 overflow-y-auto rounded-2xl bg-white/70 p-3 text-xs leading-relaxed whitespace-pre-wrap text-doa-ink/80">
             {memory?.profile ? memory.profile : "아직 알고 있는 정보가 없어요."}
           </p>
-        </CollapsibleSection>
-
-        <CollapsibleSection title="할 일" defaultOpen={true}>
-          {memory && memory.todos.length === 0 && (
-            <p className="text-xs text-doa-ink/50">등록된 할 일이 없어요.</p>
-          )}
-          <ul className={LIST_SCROLL_CLASSES}>
-            {memory?.todos.map((todo) => (
-              <li
-                key={todo.id}
-                className={`flex items-center justify-between gap-1 rounded-xl bg-white/70 px-3 py-1.5 text-xs ${
-                  todo.isDone ? "text-doa-ink/40" : "text-doa-ink/80"
-                }`}
-              >
-                <span className={todo.isDone ? "line-through" : ""}>
-                  {todo.title}
-                  {todo.deadline && (
-                    <span className="ml-1 text-doa-pink-500">· {formatDateTime(todo.deadline)}</span>
-                  )}
-                </span>
-                <span className="flex shrink-0 items-center gap-1">
-                  <ToggleDoneButton
-                    checked={todo.isDone}
-                    onClick={() => toggleTodoCompleted(todo.id, todo.isDone)}
-                    label={todo.isDone ? "할 일 완료 취소" : "할 일 완료"}
-                  />
-                  <DeleteButton onClick={() => deleteTodo(todo.id)} label="할 일 삭제" />
-                </span>
-              </li>
-            ))}
-          </ul>
-        </CollapsibleSection>
-
-        <CollapsibleSection title="버킷리스트" defaultOpen={false}>
-          {memory && memory.bucketItems.length === 0 && (
-            <p className="text-xs text-doa-ink/50">등록된 버킷리스트가 없어요.</p>
-          )}
-          <ul className={LIST_SCROLL_CLASSES}>
-            {memory?.bucketItems.map((item) => (
-              <li
-                key={item.id}
-                className={`flex items-center justify-between gap-1 rounded-xl bg-white/70 px-3 py-1.5 text-xs ${
-                  item.isDone ? "text-doa-ink/40" : "text-doa-ink/80"
-                }`}
-              >
-                <span className={item.isDone ? "line-through" : ""}>{item.title}</span>
-                <span className="flex shrink-0 items-center gap-1">
-                  <ToggleDoneButton
-                    checked={item.isDone}
-                    onClick={() => toggleBucketItemCompleted(item.id, item.isDone)}
-                    label={item.isDone ? "버킷리스트 완료 취소" : "버킷리스트 완료"}
-                  />
-                  <DeleteButton onClick={() => deleteBucketItem(item.id)} label="버킷리스트 삭제" />
-                </span>
-              </li>
-            ))}
-          </ul>
         </CollapsibleSection>
 
         <CollapsibleSection title="반복 루틴" defaultOpen={false}>
@@ -433,7 +421,48 @@ export default function Sidebar({
           </ul>
         </CollapsibleSection>
 
-        <CollapsibleSection title="다가오는 일정" defaultOpen={false}>
+        <CollapsibleSection title="데드라인" defaultOpen={true}>
+          {memory && memory.todos.length === 0 && (
+            <p className="text-xs text-doa-ink/50">등록된 데드라인이 없어요.</p>
+          )}
+          <ul className={LIST_SCROLL_CLASSES}>
+            {memory?.todos
+              .filter((todo) => !todo.isDone || completingIds.has(todo.id))
+              .map((todo) => {
+                const completing = completingIds.has(todo.id);
+                return (
+                  <li key={todo.id} className="overflow-hidden rounded-xl">
+                    <div
+                      className={`flex items-center justify-between gap-1 bg-white/70 px-3 py-1.5 text-xs transition-all duration-300 ease-in ${
+                        completing
+                          ? "translate-x-full text-doa-ink/40 opacity-0"
+                          : "translate-x-0 text-doa-ink/80 opacity-100"
+                      }`}
+                    >
+                      <span className={completing ? "line-through" : ""}>
+                        {todo.title}
+                        {todo.deadline && (
+                          <span className="ml-1 text-doa-purple-300">
+                            · {formatDateTime(todo.deadline, NO_TIME_DEADLINE_SENTINEL_HHMM)}
+                          </span>
+                        )}
+                      </span>
+                      <span className="flex shrink-0 items-center gap-1">
+                        <ToggleDoneButton
+                          checked={completing}
+                          onClick={() => toggleTodoCompleted(todo.id, todo.isDone)}
+                          label="데드라인 완료"
+                        />
+                        <DeleteButton onClick={() => deleteTodo(todo.id)} label="데드라인 삭제" />
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+          </ul>
+        </CollapsibleSection>
+
+        <CollapsibleSection title="일정" defaultOpen={false}>
           {memory && memory.schedules.length === 0 && (
             <p className="text-xs text-doa-ink/50">예정된 일정이 없어요.</p>
           )}
@@ -465,6 +494,40 @@ export default function Sidebar({
                 </span>
               </li>
             ))}
+          </ul>
+        </CollapsibleSection>
+
+        <CollapsibleSection title="버킷리스트" defaultOpen={false}>
+          {memory && memory.bucketItems.length === 0 && (
+            <p className="text-xs text-doa-ink/50">등록된 버킷리스트가 없어요.</p>
+          )}
+          <ul className={LIST_SCROLL_CLASSES}>
+            {memory?.bucketItems
+              .filter((item) => !item.isDone || completingIds.has(item.id))
+              .map((item) => {
+                const completing = completingIds.has(item.id);
+                return (
+                  <li key={item.id} className="overflow-hidden rounded-xl">
+                    <div
+                      className={`flex items-center justify-between gap-1 bg-white/70 px-3 py-1.5 text-xs transition-all duration-300 ease-in ${
+                        completing
+                          ? "translate-x-full text-doa-ink/40 opacity-0"
+                          : "translate-x-0 text-doa-ink/80 opacity-100"
+                      }`}
+                    >
+                      <span className={completing ? "line-through" : ""}>{item.title}</span>
+                      <span className="flex shrink-0 items-center gap-1">
+                        <ToggleDoneButton
+                          checked={completing}
+                          onClick={() => toggleBucketItemCompleted(item.id, item.isDone)}
+                          label="버킷리스트 완료"
+                        />
+                        <DeleteButton onClick={() => deleteBucketItem(item.id)} label="버킷리스트 삭제" />
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
           </ul>
         </CollapsibleSection>
 

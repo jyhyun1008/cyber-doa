@@ -15,7 +15,7 @@ export async function checkDeadlines(userId: string, now: Date) {
 
     const text = await generateProactiveMessage(
       userId,
-      `할 일 "${todo.title}"의 마감일(${todo.deadline.toISOString()})이 내일이에요. 미리 알려주세요.`
+      `데드라인 "${todo.title}"의 마감일(${todo.deadline.toISOString()})이 내일이에요. 미리 알려주세요.`
     );
     await triggerProactiveMessage(userId, text);
     await prisma.todo.update({
