@@ -39,6 +39,7 @@ model Message {
   content         String
   source          String   @default("chat")
   thinkingSeconds Int?
+  confirmed       Boolean  @default(false)
   createdAt       DateTime @default(now())
 
   @@index([userId, createdAt])
@@ -79,6 +80,7 @@ model Routine {
   time              String
   isActive          Boolean  @default(true)
   lastTriggeredDate String?
+  lastCompletedDate String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

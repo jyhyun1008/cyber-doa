@@ -93,11 +93,21 @@ export function useChatStream() {
         role: "user",
         content: trimmed,
         source: "chat",
+        confirmed: false,
         createdAt: new Date().toISOString(),
       });
     },
     [addMessage]
   );
 
-  return { messages, isTyping, loading, sendMessage, loadMore, hasMore, loadingMore };
+  const confirmMessage = useCallback(async (id: string, confirmed: boolean) => {
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, confirmed } : m)));
+    await fetch(`/api/messages/${id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ confirmed }),
+    });
+  }, []);
+
+  return { messages, isTyping, loading, sendMessage, loadMore, hasMore, loadingMore, confirmMessage };
 }

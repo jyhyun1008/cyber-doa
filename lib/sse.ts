@@ -10,6 +10,7 @@ export type ChatEvent =
         role: string;
         content: string;
         source: string;
+        confirmed: boolean;
         createdAt: string;
       };
     };

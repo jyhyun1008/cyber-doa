@@ -9,7 +9,8 @@ import TypingIndicator from "./TypingIndicator";
 import ChatInput from "./ChatInput";
 
 export default function ChatWindow() {
-  const { messages, isTyping, loading, sendMessage, loadMore, hasMore, loadingMore } = useChatStream();
+  const { messages, isTyping, loading, sendMessage, loadMore, hasMore, loadingMore, confirmMessage } =
+    useChatStream();
   const { openMenu } = useMobileMenu();
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -83,7 +84,9 @@ export default function ChatWindow() {
                 </button>
               </div>
             )}
-            {messages.map((m) => <MessageBubble key={m.id} message={m} />)}
+            {messages.map((m) => (
+              <MessageBubble key={m.id} message={m} onToggleConfirm={confirmMessage} />
+            ))}
           </>
         )}
         {isTyping && <TypingIndicator />}

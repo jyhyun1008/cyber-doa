@@ -127,11 +127,11 @@ export default function Sidebar({
     refresh();
   }
 
-  async function toggleRoutine(id: string, isActive: boolean) {
+  async function toggleRoutineCompleted(id: string, completedToday: boolean) {
     await fetch(`/api/routines/${id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ isActive: !isActive }),
+      body: JSON.stringify({ completedToday: !completedToday }),
     });
     refresh();
   }
@@ -276,11 +276,11 @@ export default function Sidebar({
             {memory?.routines.map((routine) => (
               <li
                 key={routine.id}
-                className={`flex items-center justify-between gap-1 rounded-xl px-3 py-1.5 text-xs ${
-                  routine.isActive ? "bg-white/70 text-doa-ink/80" : "bg-white/40 text-doa-ink/40"
+                className={`flex items-center justify-between gap-1 rounded-xl bg-white/70 px-3 py-1.5 text-xs ${
+                  routine.completedToday ? "text-doa-ink/40" : "text-doa-ink/80"
                 }`}
               >
-                <span className="min-w-0 truncate">
+                <span className={`min-w-0 truncate ${routine.completedToday ? "line-through" : ""}`}>
                   {routine.title}
                   <span className="ml-1 text-doa-blue-300">
                     · {formatDaysOfWeek(routine.daysOfWeek)} {routine.time}
@@ -288,17 +288,15 @@ export default function Sidebar({
                 </span>
                 <span className="flex shrink-0 items-center gap-1">
                   <button
-                    onClick={() => toggleRoutine(routine.id, routine.isActive)}
-                    aria-label={routine.isActive ? "루틴 끄기" : "루틴 켜기"}
-                    className={`inline-flex h-4 w-7 shrink-0 items-center rounded-full px-0.5 transition-colors ${
-                      routine.isActive ? "bg-doa-pink-300" : "bg-doa-ink/20"
+                    onClick={() => toggleRoutineCompleted(routine.id, routine.completedToday)}
+                    aria-label={routine.completedToday ? "오늘 실행 취소" : "오늘 실행 완료"}
+                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-md border transition-colors ${
+                      routine.completedToday
+                        ? "border-doa-pink-300 bg-doa-pink-300 text-white"
+                        : "border-doa-ink/30 bg-white text-transparent"
                     }`}
                   >
-                    <span
-                      className={`h-3 w-3 shrink-0 rounded-full bg-white shadow transition-transform ${
-                        routine.isActive ? "translate-x-3" : "translate-x-0"
-                      }`}
-                    />
+                    ✓
                   </button>
                   <DeleteButton onClick={() => deleteRoutine(routine.id)} label="루틴 삭제" />
                 </span>

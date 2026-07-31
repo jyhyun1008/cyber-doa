@@ -10,8 +10,15 @@ function formatTime(iso: string) {
   }).format(new Date(iso));
 }
 
-export default function MessageBubble({ message }: { message: ChatMessage }) {
+export default function MessageBubble({
+  message,
+  onToggleConfirm,
+}: {
+  message: ChatMessage;
+  onToggleConfirm?: (id: string, confirmed: boolean) => void;
+}) {
   const isUser = message.role === "user";
+  const isConfirmable = message.role === "assistant" && message.source === "proactive";
 
   return (
     <div className={`flex items-end gap-2 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
@@ -34,7 +41,29 @@ export default function MessageBubble({ message }: { message: ChatMessage }) {
         >
           {message.content}
         </div>
-        <span className="px-1 text-[10px] text-doa-ink/40">{formatTime(message.createdAt)}</span>
+        <span className="flex items-center gap-1.5 px-1 text-[10px] text-doa-ink/40">
+          {formatTime(message.createdAt)}
+          {isConfirmable && (
+            <button
+              onClick={() => onToggleConfirm?.(message.id, !message.confirmed)}
+              aria-label={message.confirmed ? "확인 취소" : "확인했어요"}
+              className={`flex items-center gap-0.5 rounded-full px-1.5 py-0.5 transition-colors ${
+                message.confirmed
+                  ? "bg-doa-pink-100 text-doa-pink-500"
+                  : "bg-doa-ink/5 text-doa-ink/40 hover:bg-doa-ink/10"
+              }`}
+            >
+              <span
+                className={`flex h-3 w-3 items-center justify-center rounded-sm border text-[8px] leading-none ${
+                  message.confirmed ? "border-doa-pink-500 bg-doa-pink-500 text-white" : "border-doa-ink/30"
+                }`}
+              >
+                ✓
+              </span>
+              확인
+            </button>
+          )}
+        </span>
       </div>
     </div>
   );

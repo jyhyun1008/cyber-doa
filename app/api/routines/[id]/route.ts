@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/auth";
+import { getRoutineDayKey } from "@/lib/time";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const userId = await requireUserId(request);
@@ -9,12 +10,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const { id } = await params;
   const body = await request.json().catch(() => null);
   const isActive = typeof body?.isActive === "boolean" ? body.isActive : undefined;
+  const completedToday = typeof body?.completedToday === "boolean" ? body.completedToday : undefined;
 
-  if (isActive === undefined) {
-    return NextResponse.json({ error: "isActive is required" }, { status: 400 });
+  if (isActive === undefined && completedToday === undefined) {
+    return NextResponse.json({ error: "isActive or completedToday is required" }, { status: 400 });
   }
 
-  const result = await prisma.routine.updateMany({ where: { id, userId }, data: { isActive } });
+  const data: { isActive?: boolean; lastCompletedDate?: string | null } = {};
+  if (isActive !== undefined) data.isActive = isActive;
+  if (completedToday !== undefined) data.lastCompletedDate = completedToday ? getRoutineDayKey() : null;
+
+  const result = await prisma.routine.updateMany({ where: { id, userId }, data });
   return NextResponse.json({ ok: result.count > 0 });
 }
 

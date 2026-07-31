@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
       role: message.role,
       content: message.content,
       source: message.source,
+      confirmed: message.confirmed,
       createdAt: message.createdAt.toISOString(),
     },
   });

@@ -49,6 +49,19 @@ export function getDateKey(date: Date = new Date()): string {
   return `${p.year}-${p.month}-${p.day}`;
 }
 
+/**
+ * "YYYY-MM-DD" in the app's configured timezone, but treating 00:00–04:59 as still belonging
+ * to the previous day — used for routine-completion tracking so a late-night check-off (or the
+ * daily reset) lands on the day it was actually meant for, not the next calendar day.
+ */
+export function getRoutineDayKey(date: Date = new Date()): string {
+  const p = partsFor(date);
+  if (Number(p.hour) < 5) {
+    return getDateKey(new Date(date.getTime() - 24 * 60 * 60 * 1000));
+  }
+  return getDateKey(date);
+}
+
 export function formatKoreanDateTime(date: Date = new Date()): string {
   const p = partsFor(date);
   return `${p.year}-${p.month}-${p.day} (${WEEKDAY_LABELS_KO[p.weekdayIndex]}) ${p.hour}:${p.minute}`;

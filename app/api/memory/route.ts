@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/auth";
+import { getRoutineDayKey } from "@/lib/time";
 
 export async function GET(request: NextRequest) {
   const userId = await requireUserId(request);
@@ -29,6 +30,7 @@ export async function GET(request: NextRequest) {
       daysOfWeek: JSON.parse(r.daysOfWeek) as number[],
       time: r.time,
       isActive: r.isActive,
+      completedToday: r.lastCompletedDate === getRoutineDayKey(),
     })),
     schedules: schedules.map((s) => ({
       id: s.id,

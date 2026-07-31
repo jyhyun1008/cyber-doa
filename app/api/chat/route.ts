@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
       role: userMessage.role,
       content: userMessage.content,
       source: userMessage.source,
+      confirmed: userMessage.confirmed,
       createdAt: userMessage.createdAt.toISOString(),
     },
   });
@@ -101,6 +102,7 @@ async function handleReply(userId: string, apiKey: string | null) {
       role: assistantMessage.role,
       content: assistantMessage.content,
       source: assistantMessage.source,
+      confirmed: assistantMessage.confirmed,
       createdAt: assistantMessage.createdAt.toISOString(),
     },
   });
