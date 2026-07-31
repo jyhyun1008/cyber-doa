@@ -8,7 +8,7 @@ import { useMemoryPanel } from "@/hooks/useMemoryPanel";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
 import { useAppSettings } from "@/hooks/useAppSettings";
 import { useOpenAIKey } from "@/hooks/useOpenAIKey";
-import { getWeekday } from "@/lib/time";
+import { getWeekday, getHHMM, NO_TIME_SENTINEL_HHMM } from "@/lib/time";
 import InstallPrompt from "./InstallPrompt";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
@@ -22,14 +22,14 @@ function formatDaysOfWeek(days: number[]) {
 }
 
 function formatDateTime(iso: string) {
+  const date = new Date(iso);
+  const hasNoSpecificTime = getHHMM(date) === NO_TIME_SENTINEL_HHMM;
   return new Intl.DateTimeFormat("ko-KR", {
     timeZone: "Asia/Seoul",
     month: "numeric",
     day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(new Date(iso));
+    ...(hasNoSpecificTime ? {} : { hour: "2-digit", minute: "2-digit", hour12: false }),
+  }).format(date);
 }
 
 function LockIcon({ locked }: { locked: boolean }) {

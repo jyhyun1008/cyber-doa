@@ -2,7 +2,7 @@ import type OpenAI from "openai";
 import { openai, getOpenAIClient, OPENAI_MODEL } from "./openai";
 import { chatTools, executeMemoryTool, MEMORY_TOOL_NAMES, dayIndicesToLabels } from "./tools";
 import { prisma } from "./db";
-import { formatKoreanDateTime, isoKstOffset } from "./time";
+import { formatKoreanDateTime, isoKstOffset, getHHMM, getDateKey, NO_TIME_SENTINEL_HHMM } from "./time";
 
 export type ChatMessage = { role: "user" | "assistant"; content: string; createdAt: Date };
 
@@ -23,6 +23,12 @@ function formatMessageTimestamp(date: Date): string {
 
 const FALLBACK_REPLY = { reply: "음... 다시 한 번 말씀해 주실 수 있으세요?", thinking_seconds: 2 };
 
+// 05:01 KST is a sentinel meaning "user gave only a date, no specific time" (see applyDateOnlySentinel
+// in lib/time.ts) — show the model a date-only marker instead, so it doesn't treat 05:01 as a real time.
+function formatDateOrDateTime(date: Date): string {
+  return getHHMM(date) === NO_TIME_SENTINEL_HHMM ? `${getDateKey(date)} (시각 미지정)` : isoKstOffset(date);
+}
+
 export async function buildSystemPrompt(userId: string): Promise<string> {
   const [user, todos, bucketItems, routines, schedules] = await Promise.all([
     prisma.appUser.findUnique({ where: { id: userId } }),
@@ -34,7 +40,7 @@ export async function buildSystemPrompt(userId: string): Promise<string> {
 
   const todoLines = todos.length
     ? todos
-        .map((t) => `- ${t.title}${t.deadline ? ` (마감: ${isoKstOffset(t.deadline)})` : ""}`)
+        .map((t) => `- ${t.title}${t.deadline ? ` (마감: ${formatDateOrDateTime(t.deadline)})` : ""}`)
         .join("\n")
     : "(없음)";
 
@@ -47,7 +53,7 @@ export async function buildSystemPrompt(userId: string): Promise<string> {
     : "(없음)";
 
   const scheduleLines = schedules.length
-    ? schedules.map((s) => `- ${s.title} (${isoKstOffset(s.scheduledAt)})`).join("\n")
+    ? schedules.map((s) => `- ${s.title} (${formatDateOrDateTime(s.scheduledAt)})`).join("\n")
     : "(없음)";
 
   return `너는 "DOA"라는 이름을 가진 가상 메이드 캐릭터야. 유저의 말동무이자 개인 비서 역할을 해.

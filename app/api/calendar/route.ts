@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/auth";
-import { getWeekday, getHHMM, getDateKey, kstDateTimeToUTC } from "@/lib/time";
+import { getWeekday, getHHMM, getDateKey, kstDateTimeToUTC, NO_TIME_SENTINEL_HHMM } from "@/lib/time";
 
 type CalendarItem = {
   date: string; // "YYYY-MM-DD" in KST
@@ -66,7 +66,13 @@ export async function GET(request: NextRequest) {
   for (const schedule of schedules) {
     const dateKey = getDateKey(schedule.scheduledAt);
     if (dateKey.slice(0, 4) === String(year) && Number(dateKey.slice(5, 7)) === month) {
-      items.push({ date: dateKey, type: "schedule", title: schedule.title, time: getHHMM(schedule.scheduledAt) });
+      const hhmm = getHHMM(schedule.scheduledAt);
+      items.push({
+        date: dateKey,
+        type: "schedule",
+        title: schedule.title,
+        time: hhmm === NO_TIME_SENTINEL_HHMM ? null : hhmm,
+      });
     }
   }
 

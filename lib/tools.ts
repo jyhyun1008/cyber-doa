@@ -1,5 +1,6 @@
 import type OpenAI from "openai";
 import { prisma } from "./db";
+import { applyDateOnlySentinel } from "./time";
 
 const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 
@@ -64,8 +65,13 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
             type: ["string", "null"],
             description: "마감일이 있으면 ISO 8601 datetime(+09:00 KST 오프셋 포함, UTC/Z 금지), 없으면 null",
           },
+          hasTime: {
+            type: "boolean",
+            description:
+              "유저가 구체적인 시각(예: 오후 3시, 15:00)까지 말했으면 true. 날짜만 말했으면(예: 이번주 금요일까지) false — 이 경우 deadline의 시각 부분은 아무 값이나 넣어도 서버가 알아서 처리함. deadline이 null이면 무시됨.",
+          },
         },
-        required: ["title", "deadline"],
+        required: ["title", "deadline", "hasTime"],
         additionalProperties: false,
       },
     },
@@ -150,8 +156,13 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
             type: "string",
             description: "ISO 8601 절대 datetime, 반드시 +09:00(KST) 오프셋 포함. UTC/Z 금지.",
           },
+          hasTime: {
+            type: "boolean",
+            description:
+              "유저가 구체적인 시각까지 말했으면 true. 날짜만 말했으면(예: 다음주 화요일) false — 이 경우 scheduledAt의 시각 부분은 아무 값이나 넣어도 서버가 알아서 처리함.",
+          },
         },
-        required: ["title", "scheduledAt"],
+        required: ["title", "scheduledAt", "hasTime"],
         additionalProperties: false,
       },
     },
@@ -199,9 +210,14 @@ export const chatTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
             type: ["string", "null"],
             description: "새 시각, ISO 8601 +09:00(KST) 오프셋 포함. 안 바꾸면 null.",
           },
+          newHasTime: {
+            type: "boolean",
+            description:
+              "newScheduledAt을 바꾸는 경우, 유저가 구체적인 시각까지 말했으면 true, 날짜만 말했으면 false. newScheduledAt이 null이면 무시됨.",
+          },
           newTitle: { type: ["string", "null"], description: "새 제목. 안 바꾸면 null." },
         },
-        required: ["title", "newScheduledAt", "newTitle"],
+        required: ["title", "newScheduledAt", "newHasTime", "newTitle"],
         additionalProperties: false,
       },
     },
@@ -340,9 +356,13 @@ export async function executeMemoryTool(userId: string, name: string, args: Reco
         return { ok: true, skipped: "already exists" };
       }
 
-      const deadline = args.deadline ? new Date(String(args.deadline)) : null;
+      const deadlineRaw = args.deadline ? new Date(String(args.deadline)) : null;
+      const deadline =
+        deadlineRaw && !isNaN(deadlineRaw.getTime())
+          ? applyDateOnlySentinel(deadlineRaw, Boolean(args.hasTime))
+          : null;
       await prisma.todo.create({
-        data: { userId, title, deadline: deadline && !isNaN(deadline.getTime()) ? deadline : null },
+        data: { userId, title, deadline },
       });
       return { ok: true };
     }
@@ -396,10 +416,11 @@ export async function executeMemoryTool(userId: string, name: string, args: Reco
     }
     case "add_schedule": {
       const title = String(args.title ?? "").trim();
-      const scheduledAt = new Date(String(args.scheduledAt ?? ""));
-      if (!title || isNaN(scheduledAt.getTime())) {
+      const scheduledAtRaw = new Date(String(args.scheduledAt ?? ""));
+      if (!title || isNaN(scheduledAtRaw.getTime())) {
         return { ok: false, error: "invalid schedule arguments" };
       }
+      const scheduledAt = applyDateOnlySentinel(scheduledAtRaw, Boolean(args.hasTime));
 
       const existing = await prisma.schedule.findMany({ where: { userId, isSent: false } });
       const isDuplicate = existing.some(
@@ -441,7 +462,7 @@ export async function executeMemoryTool(userId: string, name: string, args: Reco
       if (args.newTitle) data.title = String(args.newTitle).trim();
       if (args.newScheduledAt) {
         const newDate = new Date(String(args.newScheduledAt));
-        if (!isNaN(newDate.getTime())) data.scheduledAt = newDate;
+        if (!isNaN(newDate.getTime())) data.scheduledAt = applyDateOnlySentinel(newDate, Boolean(args.newHasTime));
       }
       if (!Object.keys(data).length) return { ok: false, error: "nothing to update" };
 

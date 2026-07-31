@@ -83,6 +83,20 @@ export function kstDateTimeToUTC(year: number, month: number, day: number, hour:
   return new Date(Date.UTC(year, month - 1, day, hour, minute) - SEOUL_OFFSET_MINUTES * 60_000);
 }
 
+/** Sentinel HH:mm used for todos/schedules where the user gave only a date, no specific time. */
+export const NO_TIME_SENTINEL_HHMM = "05:01";
+
+/**
+ * If `hasTime` is false, snaps `date` to 05:01 KST on the same calendar day — callers later check
+ * `getHHMM(date) === NO_TIME_SENTINEL_HHMM` to know when to hide the time portion in the UI instead
+ * of showing a made-up time the user never specified.
+ */
+export function applyDateOnlySentinel(date: Date, hasTime: boolean): Date {
+  if (hasTime) return date;
+  const p = partsFor(date);
+  return kstDateTimeToUTC(Number(p.year), Number(p.month), Number(p.day), 5, 1);
+}
+
 /** Noon KST on the calendar day before `date` (also in KST). */
 export function noonKstDayBefore(date: Date): Date {
   const p = partsFor(date);
