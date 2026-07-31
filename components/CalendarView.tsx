@@ -75,6 +75,9 @@ export default function CalendarView() {
       list.push(item);
       map.set(item.date, list);
     }
+    for (const list of map.values()) {
+      list.sort((a, b) => (a.time ?? "99:99").localeCompare(b.time ?? "99:99"));
+    }
     return map;
   }, [items]);
 
