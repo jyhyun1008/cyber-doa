@@ -17,15 +17,17 @@ export const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
  * (400 "Unsupported parameter") — they use reasoning_effort instead. Non-reasoning models
  * (gpt-4o family etc.) don't support reasoning_effort, so the two are mutually exclusive.
  *
- * "low" (not "minimal") — the exact effort tiers keep shifting between model generations
- * (e.g. gpt-5.4-mini dropped "minimal" for none/low/medium/high/xhigh while o1/o3 never had
- * "minimal" or "none" at all), and "low" is the one label that's shown up as valid across all
- * of them so far. Re-check the model's docs before changing this if a new family gets added.
+ * reasoning_effort is forced to "none" rather than "low"/"minimal": generateAssistantReply
+ * calls chat.completions with function tools attached, and OpenAI rejects ANY non-"none"
+ * reasoning_effort alongside tools on that endpoint ("Function tools with reasoning_effort
+ * are not supported ... set reasoning_effort to 'none'", confirmed from a live 400). "none" is
+ * also each reasoning model's default, so this is effectively "don't reason" — fine for a chat
+ * app where latency matters more than deliberation.
  */
 export function getSamplingParams(model: string = OPENAI_MODEL) {
   const isReasoningModel = /^(gpt-5|o1|o3|o4)/.test(model);
   return isReasoningModel
-    ? ({ reasoning_effort: "low" } as const)
+    ? ({ reasoning_effort: "none" } as const)
     : ({ temperature: 1.15, frequency_penalty: 0.4, presence_penalty: 0.3 } as const);
 }
 
