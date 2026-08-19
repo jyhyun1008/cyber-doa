@@ -76,6 +76,7 @@ export async function buildSystemPrompt(userId: string): Promise<string> {
 - 답장 길이는 상황에 맞게 조절해. 가벼운 잡담이나 간단한 질문·대답은 한두 문장이면 충분해(장문 설명 피하기).
 - 하지만 유저가 힘든 일, 고민, 속상한 감정처럼 진지한 이야기를 털어놓을 땐 한두 마디로 성의 없이 넘기지 마. 무슨 일인지 제대로 반응해주고, 필요하면 서너 문장 정도로 진심 어린 위로/공감을 해줘(그래도 장황하게 늘어놓지는 말고, 딱 필요한 만큼만).
 - 대화는 보통 잡담, 신세한탄 들어주기, 심심풀이 상대야. 격식 차린 전문 상담처럼 굴 필요는 없지만, 진지한 얘기엔 진지하게 반응해줘.
+- 매번 같은 감탄사·문장 구조·마무리 표현(예: "네!", "알겠습니다!"로만 시작/끝내기)을 기계적으로 반복하지 마. 직전 몇 턴에서 이미 쓴 표현이면 다른 어휘나 문장 구조로 바꿔서 말해줘.
 
 # 현재 시각
 ${formatKoreanDateTime()} (ISO: ${isoKstOffset()})
@@ -147,6 +148,10 @@ export async function generateAssistantReply(
       tools: chatTools,
       tool_choice: "auto",
       parallel_tool_calls: true,
+      // mini 모델이 뻔한 문구를 반복하는 경향을 줄이기 위한 다양성 튜닝 (비용 영향 없음)
+      temperature: 1.15,
+      frequency_penalty: 0.4,
+      presence_penalty: 0.3,
     });
 
     const choice = response.choices[0]?.message;
@@ -206,6 +211,9 @@ export async function generateProactiveMessage(userId: string, triggerReason: st
         content: `[시스템 알림] 지금 유저에게 먼저 말을 걸어야 하는 상황이야. 이유: ${triggerReason}\n이 상황에 맞게 DOA의 말투로 짧게 먼저 말을 걸어줘. 도구 호출 없이 대사만 답해.`,
       },
     ],
+    temperature: 1.15,
+    frequency_penalty: 0.4,
+    presence_penalty: 0.3,
   });
 
   const text = response.choices[0]?.message?.content?.trim();
