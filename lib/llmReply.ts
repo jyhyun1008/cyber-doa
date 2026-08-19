@@ -1,5 +1,5 @@
 import type OpenAI from "openai";
-import { openai, getOpenAIClient, OPENAI_MODEL } from "./openai";
+import { openai, getOpenAIClient, OPENAI_MODEL, getSamplingParams } from "./openai";
 import { chatTools, executeMemoryTool, MEMORY_TOOL_NAMES, dayIndicesToLabels } from "./tools";
 import { prisma } from "./db";
 import {
@@ -149,10 +149,9 @@ export async function generateAssistantReply(
       tools: chatTools,
       tool_choice: "auto",
       parallel_tool_calls: true,
-      // mini 모델이 뻔한 문구를 반복하는 경향을 줄이기 위한 다양성 튜닝 (비용 영향 없음)
-      temperature: 1.15,
-      frequency_penalty: 0.4,
-      presence_penalty: 0.3,
+      // mini 모델이 뻔한 문구를 반복하는 경향을 줄이기 위한 다양성 튜닝 (비용 영향 없음).
+      // gpt-5/o-시리즈 reasoning 모델은 temperature류를 거부하므로 모델별로 분기.
+      ...getSamplingParams(),
     });
 
     const choice = response.choices[0]?.message;
@@ -212,9 +211,7 @@ export async function generateProactiveMessage(userId: string, triggerReason: st
         content: `[시스템 알림] 지금 유저에게 먼저 말을 걸어야 하는 상황이야. 이유: ${triggerReason}\n이 상황에 맞게 DOA의 말투로 짧게 먼저 말을 걸어줘. 도구 호출 없이 대사만 답해.`,
       },
     ],
-    temperature: 1.15,
-    frequency_penalty: 0.4,
-    presence_penalty: 0.3,
+    ...getSamplingParams(),
   });
 
   const text = response.choices[0]?.message?.content?.trim();
