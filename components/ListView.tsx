@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useState } from "react";
 import { useMemoryPanel } from "@/hooks/useMemoryPanel";
 import { useMobileMenu } from "@/contexts/MobileMenuContext";
 import { getHHMM, NO_TIME_DEADLINE_SENTINEL_HHMM } from "@/lib/time";
@@ -109,6 +110,22 @@ function Card({
 export default function ListView() {
   const { openMenu } = useMobileMenu();
   const { memory, refresh } = useMemoryPanel();
+  const [cleaning, setCleaning] = useState(false);
+  const [cleanupMsg, setCleanupMsg] = useState<string | null>(null);
+
+  async function cleanupCompleted() {
+    setCleaning(true);
+    setCleanupMsg(null);
+    try {
+      const res = await fetch("/api/list/cleanup", { method: "POST" });
+      const data = await res.json().catch(() => null);
+      setCleanupMsg(data?.deletedCount ? `${data.deletedCount}개 정리했어요` : "정리할 게 없어요");
+      refresh();
+    } finally {
+      setCleaning(false);
+      setTimeout(() => setCleanupMsg(null), 2500);
+    }
+  }
 
   async function toggleTodoCompleted(id: string, isDone: boolean) {
     await fetch(`/api/todos/${id}`, {
@@ -156,15 +173,25 @@ export default function ListView() {
         <span className="hidden font-[family-name:var(--font-cute-heading)] text-lg text-doa-pink-500 lg:inline">
           데드라인 · 버킷리스트
         </span>
-        <button
-          onClick={openMenu}
-          aria-label="메뉴 열기"
-          className="rounded-full bg-white/80 p-2 text-doa-pink-500 shadow-sm lg:hidden"
-        >
-          <span className="block h-0.5 w-5 rounded-full bg-current" />
-          <span className="my-1 block h-0.5 w-5 rounded-full bg-current" />
-          <span className="block h-0.5 w-5 rounded-full bg-current" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={cleanupCompleted}
+            disabled={cleaning}
+            title="완료한 지 24시간 지난 항목을 자동으로 삭제해요"
+            className="whitespace-nowrap rounded-full bg-doa-blue-100 px-3 py-1.5 text-xs text-doa-ink/70 shadow-sm transition-transform hover:scale-105 hover:text-doa-ink disabled:opacity-60"
+          >
+            {cleaning ? "정리 중..." : (cleanupMsg ?? "🧹 완료 정리")}
+          </button>
+          <button
+            onClick={openMenu}
+            aria-label="메뉴 열기"
+            className="rounded-full bg-white/80 p-2 text-doa-pink-500 shadow-sm lg:hidden"
+          >
+            <span className="block h-0.5 w-5 rounded-full bg-current" />
+            <span className="my-1 block h-0.5 w-5 rounded-full bg-current" />
+            <span className="block h-0.5 w-5 rounded-full bg-current" />
+          </button>
+        </div>
       </header>
 
       <div className="scrollbar-cute flex-1 space-y-6 overflow-y-auto px-4 py-4">
