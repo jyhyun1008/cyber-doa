@@ -14,7 +14,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     return NextResponse.json({ error: "isDone is required" }, { status: 400 });
   }
 
-  const result = await prisma.bucketItem.updateMany({ where: { id, userId }, data: { isDone } });
+  const result = await prisma.bucketItem.updateMany({
+    where: { id, userId },
+    data: { isDone, completedAt: isDone ? new Date() : null },
+  });
   return NextResponse.json({ ok: result.count > 0 });
 }
 

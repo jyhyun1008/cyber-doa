@@ -1,21 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireUserId } from "@/lib/auth";
-import { getRoutineDayKey } from "@/lib/time";
+import { getRoutineDayKey, getDateKey, kstDateTimeToUTC } from "@/lib/time";
 
 export async function GET(request: NextRequest) {
   const userId = await requireUserId(request);
   if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
+  // completed todos/bucket items drop out of this list once the day they were completed on has
+  // passed (but the row itself is never touched — e.g. a todo's deadline still shows on the
+  // calendar regardless of this filter, since that's a separate query against the same table)
+  const [todayYear, todayMonth, todayDay] = getDateKey().split("-").map(Number);
+  const todayStart = kstDateTimeToUTC(todayYear, todayMonth, todayDay, 0, 0);
+  const notStaleCompleted = { OR: [{ isDone: false }, { completedAt: { gte: todayStart } }] };
+
   const [user, todos, bucketItems, routines, schedules] = await Promise.all([
     prisma.appUser.findUnique({ where: { id: userId } }),
     prisma.todo.findMany({
-      where: { userId },
+      where: { userId, ...notStaleCompleted },
       orderBy: [{ isDone: "asc" }, { deadline: "asc" }],
       take: 10,
     }),
     prisma.bucketItem.findMany({
-      where: { userId },
+      where: { userId, ...notStaleCompleted },
       orderBy: [{ isDone: "asc" }, { createdAt: "asc" }],
       take: 20,
     }),

@@ -1,5 +1,19 @@
 @import "tailwindcss";
 
+@font-face {
+    font-family: 'GyeonggiMillenniumTitle';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2410-3@1.0/Title_Medium.woff') format('woff');
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'GyeonggiMillenniumTitle';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2410-3@1.0/Title_Bold.woff') format('woff');
+    font-weight: 700;
+    font-display: swap;
+}
+
 @theme {
   --color-doa-cream: #fff9fb;
   --color-doa-pink-50: #fff0f5;
@@ -11,8 +25,8 @@
   --color-doa-purple-100: #e8def8;
   --color-doa-purple-300: #c4a7ec;
   --color-doa-ink: #6b4d5a;
-  --font-cute-heading: var(--font-jua);
-  --font-cute-body: var(--font-jua);
+  --font-cute-heading: 'GyeonggiMillenniumTitle';
+  --font-cute-body: 'GyeonggiMillenniumTitle';
 }
 
 html {

@@ -417,7 +417,10 @@ export async function executeMemoryTool(userId: string, name: string, args: Reco
       const open = await prisma.bucketItem.findMany({ where: { userId, isDone: false } });
       const match = findBestTitleMatch(open, title);
       if (!match) return { ok: false, error: "matching bucket item not found" };
-      await prisma.bucketItem.updateMany({ where: { id: match.id, userId }, data: { isDone: true } });
+      await prisma.bucketItem.updateMany({
+        where: { id: match.id, userId },
+        data: { isDone: true, completedAt: new Date() },
+      });
       return { ok: true };
     }
     case "delete_bucket_item": {
@@ -492,7 +495,10 @@ export async function executeMemoryTool(userId: string, name: string, args: Reco
       const open = await prisma.todo.findMany({ where: { userId, isDone: false } });
       const match = findBestTitleMatch(open, title);
       if (!match) return { ok: false, error: "matching todo not found" };
-      await prisma.todo.updateMany({ where: { id: match.id, userId }, data: { isDone: true } });
+      await prisma.todo.updateMany({
+        where: { id: match.id, userId },
+        data: { isDone: true, completedAt: new Date() },
+      });
       return { ok: true };
     }
     case "delete_todo": {
